@@ -1,0 +1,8 @@
+@copyright 2018 SigScale Global Inc.
+@version %VERSION%
+@title %DESCRIPTION%
+@doc This application implements the Global Title Translation (GTT)
+	of the Signaling System No. 7 (SS7) protocol suite.
+
+==Introduction==
+

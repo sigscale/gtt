@@ -1,0 +1,9 @@
+@doc This {@link //stdlib/supervisor. supervisor} behaviour callback
+	module implements a supervisor in the
+	{@link //gtt. gtt} application.
+
+The supervision heirachy is depicted in
+<a href="supervision.png">Figure 1-1</a>.
+
+<a href="https://docs.google.com/drawings/d/1qyTT4iRFb74r_bTNcUpjUwkGlPkRuLbbWDVGpfnh6E0" src="supervision.png" /></a><br />
+<a href="supervision.png">Figure 1-1</a>

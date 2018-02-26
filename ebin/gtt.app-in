@@ -1,0 +1,11 @@
+{application, %APP_NAME%,
+	[{description, "SigScale Global Title Translation (GTT)"},
+		{vsn, "%APP_VERSION%"},
+		{modules,
+				[gtt,
+				gtt_app,
+				gtt_sup,
+				gtt_server]},
+		{registered, [gtt]},
+		{applications, [kernek, stdlib]},
+		{env, []}]}.
