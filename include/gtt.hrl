@@ -16,15 +16,15 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%
 -record(gtt_endpoint,
-		{ep :: pid(),
-		name :: term(),
-		scto_role :: client | server,
+		{name :: term(),
+		sctp_role :: client | server,
 		m3ua_role :: sgp | asp,
 		callback :: {Module :: atom(), State :: term()},
 		address :: inet:ip_address(),
 		port :: inet:port_number(),
 		options :: list(),
-		node :: node()}).
+		node :: node(),
+		ep :: pid()}).
 
 -record(gtt_as,
 		{name :: term(),
