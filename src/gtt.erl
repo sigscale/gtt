@@ -210,6 +210,8 @@ start_endpoint(EndPointName) ->
 						mnesia:write(NewEP);
 					{error, Reason} ->
 						throw(Reason);
+					{badrpc, nodedown} ->
+						throw(nodedown);
 					{'EXIT', Reason} ->
 						throw(Reason)
 				end;
