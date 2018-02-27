@@ -20,11 +20,11 @@
 		sctp_role :: client | server,
 		m3ua_role :: sgp | asp,
 		callback :: {Module :: atom(), State :: term()},
-		address :: inet:ip_address(),
-		port :: inet:port_number(),
-		options :: list(),
+		local :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
+		remote :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		node :: node(),
-		ep :: pid()}).
+		ep :: pid(),
+		assoc :: pos_integer() | undefined}).
 
 -record(gtt_as,
 		{name :: term(),

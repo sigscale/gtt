@@ -20,7 +20,7 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_endpoint/8, find_endpoint/1, add_as/7, find_as/1,
+-export([add_endpoint/7, find_endpoint/1, add_as/7, find_as/1,
 		add_sg/7, find_sg/1, start_endpoint/1]).
 
 -include("gtt.hrl").
@@ -29,29 +29,35 @@
 %%  The gtt public API
 %%----------------------------------------------------------------------
 
--spec add_endpoint(Name, Address, Port, SCTPRole,
-		M3UARole, Callback, Options, Node) -> Result
+-spec add_endpoint(Name, Local, Remote,
+		SCTPRole, M3UARole, Callback, Node) -> Result
 	when
 		Name :: term(),
-		Address :: inet:ip_address(),
-		Port :: inet:port_number(),
+		Local :: {Address, Port, Options},
+		Remote :: {Address, Port, Options},
 		SCTPRole :: client | server,
 		M3UARole :: sgp | asp,
-		Callback :: {Module :: atom(), State :: term()},
-		Options :: list(),
+		Callback :: {Module, State},
 		Node :: node(),
+		Port :: inet:port_number(),
+		Address :: inet:ip_address(),
+		Options :: list(),
+		Module :: atom(),
+		State :: term(),
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_endpoint{},
 		Reason :: term().
 %% @doc Create an endpoint
-add_endpoint(Name, Address, Port, SCTPRole,
-		M3UARole, Callback, Options, Node) when is_tuple(Address),
-		is_integer(Port), ((SCTPRole == client) orelse (SCTPRole == server)),
-		((M3UARole == sgp) orelse (M3UARole == asp)), is_tuple(Callback) ->
+add_endpoint(Name, {LocalAddr, LocalPort, _} = Local,
+		{RemoteAddr, RemotePort, _} = Remote, SCTPRole, M3UARole,
+		Callback, Node) when is_tuple(LocalAddr), is_integer(LocalPort),
+		is_tuple(RemoteAddr), is_integer(RemotePort), is_tuple(Callback),
+		((SCTPRole == client) orelse (SCTPRole == server)),
+		((M3UARole == sgp) orelse (M3UARole == asp))->
 	F = fun() ->
-			GttEP = #gtt_endpoint{name = Name, address = Address,
-				port = Port, sctp_role = SCTPRole, m3ua_role = M3UARole,
-				callback = Callback, options = Options, node = Node},
+			GttEP = #gtt_endpoint{name = Name, local = Local,
+				remote = Remote, sctp_role = SCTPRole, m3ua_role = M3UARole,
+				callback = Callback, node = Node},
 			mnesia:write(gtt_endpoint, GttEP, write),
 			GttEP
 	end,
@@ -200,18 +206,15 @@ start_endpoint(EndPointName) ->
 	F = fun() ->
 		case mnesia:read(gtt_endpoint, EndPointName, write) of
 			[#gtt_endpoint{sctp_role = SCTPRole, m3ua_role = M3UARole,
-					callback = Callback, address = Address, port = Port,
-					options = Options, node = Node} = EP] ->
-				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role, M3UARole},
-						{ip, Address}, {callback, Callback}] ++ Options,
-				case catch start_endpoint1(Node, Port, NewOptions) of
-					{ok, EndPoint} ->
-						NewEP = EP#gtt_endpoint{ep = EndPoint},
+					callback = Callback, local = Local, remote = Remote,
+					node = Node} = EP] ->
+				case catch start_endpoint1(Node, Local,
+						Remote, SCTPRole, M3UARole, Callback) of
+					{ok, EndPoint, Assoc} ->
+						NewEP = EP#gtt_endpoint{ep = EndPoint, assoc = Assoc},
 						mnesia:write(NewEP);
 					{error, Reason} ->
 						throw(Reason);
-					{badrpc, nodedown} ->
-						throw(nodedown);
 					{'EXIT', Reason} ->
 						throw(Reason)
 				end;
@@ -228,10 +231,50 @@ start_endpoint(EndPointName) ->
 			{error, Reason}
 	end.
 %% @hidden
-start_endpoint1(Node, Port, Options) when Node == node() ->
-	m3ua:open(Port, Options);
-start_endpoint1(Node, Port, Options) ->
-	rpc:call(Node, m3ua, open, [Port, Options]).
+start_endpoint1(Node, {LocalAddr, LocalPort, Options},
+		Remote, SCTPRole, M3UARole, Callback) when Node == node() ->
+	NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
+			{callback, Callback, {ip, LocalAddr}}] ++ Options,
+	case m3ua:open(LocalPort, NewOptions) of
+		{ok, EP} ->
+			start_endpoint2(Node, Remote, SCTPRole, EP);
+		{error, Reason} ->
+			{error, Reason}
+	end;
+start_endpoint1(Node, {LocalAddr, LocalPort, Options},
+		Remote, SCTPRole, M3UARole, Callback) ->
+	NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
+			{callback, Callback}, {ip, LocalAddr}] ++ Options,
+	case rpc:call(Node, m3ua, open, [LocalPort, NewOptions]) of
+		{ok, EP} ->
+			start_endpoint2(Node, Remote, SCTPRole, EP);
+		{error, Reason} ->
+			{error, Reason};
+		{badrpc, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start_endpoint2(Node, {RemoteAddr, RemotePort, Options}, client, EP)
+		when Node == node() ->
+	case m3ua:sctp_establish(EP, RemoteAddr, RemotePort, Options) of
+		{ok, Assoc} ->
+			{ok, EP, Assoc};
+		{error, Reason} ->
+			{error, Reason}
+	end;
+start_endpoint2(Node, {RemoteAddr, RemotePort, Options}, client, EP) ->
+	case rpc:call(Node, m3ua, sctp_establish,
+			[EP, RemoteAddr, RemotePort, Options]) of
+		{ok, Assoc} ->
+			{ok, EP, Assoc};
+		{error, Reason} ->
+			{error, Reason};
+		{badrpc, Reason} ->
+			{error, Reason}
+	end;
+start_endpoint2(_Node, _Remote, server, EP) ->
+	{ok, EP, undefined}.
+
 
 %%----------------------------------------------------------------------
 %%  The gtt private API
