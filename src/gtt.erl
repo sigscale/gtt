@@ -21,7 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 -export([add_endpoint/7, find_endpoint/1, add_as/7, find_as/1,
-		add_sg/7, find_sg/1, start_endpoint/1]).
+		add_sg/7, find_sg/1, start_endpoint/1, start_sg/1]).
 
 -include("gtt.hrl").
 
@@ -274,6 +274,44 @@ start_endpoint2(Node, {RemoteAddr, RemotePort, Options}, client, EP) ->
 	end;
 start_endpoint2(_Node, _Remote, server, EP) ->
 	{ok, EP, undefined}.
+
+
+-spec start_sg(AsName) -> Result
+	when
+		AsName :: term(),
+		Result :: ok | {error, Resgon},
+		Resgon :: term().
+%% @doc Register remote Appication Server.
+start_sg(AsName) ->
+	F = fun() ->
+		case mnesia:read(gtt_sg, AsName, read) of
+			[#gtt_sg{na = NA, keys = Keys, mode = Mode,
+					min_asp = Min, max_asp = Max, node = Node}] ->
+				case start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) of
+					ok ->
+						ok;
+					{badrpc, Resgon} ->
+						throw(Resgon);
+					{error, Resgon} ->
+						throw(Resgon)
+				end;
+			[] ->
+				throw(not_found)
+		end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			ok;
+		{aborted, {throw, Resgon}} ->
+			{error, Resgon};
+		{aborted, Resgon} ->
+			{error, Resgon}
+	end.
+%% @hidden
+start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) when Node == node() ->
+	m3ua:as_add(AsName, NA, Keys, Mode, Min, Max);
+start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) ->
+	rpc:call(Node, m3ua, as_add, [AsName, NA, Keys, Mode, Min, Max]).
 
 
 %%----------------------------------------------------------------------
