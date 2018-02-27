@@ -7,5 +7,5 @@
 				gtt_sup,
 				gtt_server]},
 		{registered, [gtt]},
-		{applications, [kernek, stdlib]},
+		{applications, [kernel, stdlib]},
 		{env, []}]}.
