@@ -44,4 +44,5 @@
 		max_asp :: pos_integer(),
 		node :: node()}).
 
-
+-record(gtt_association,
+		{key :: {EP :: pid(), Assoc :: pos_integer()}}).

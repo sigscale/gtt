@@ -212,7 +212,9 @@ start_endpoint(EndPointName) ->
 						Remote, SCTPRole, M3UARole, Callback) of
 					{ok, EndPoint, Assoc} ->
 						NewEP = EP#gtt_endpoint{ep = EndPoint, assoc = Assoc},
-						mnesia:write(NewEP);
+						ok = mnesia:write(NewEP),
+						Association = #gtt_association{key = {EndPoint, Assoc}},
+						ok = mnesia:write(gtt_association, Association, write);
 					{error, Reason} ->
 						throw(Reason);
 					{'EXIT', Reason} ->
