@@ -8,4 +8,5 @@
 				gtt_server]},
 		{registered, [gtt]},
 		{applications, [kernel, stdlib]},
-		{env, []}]}.
+		{env, []},
+		{mod, {gtt_app, []}}]}.
