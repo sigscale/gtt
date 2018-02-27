@@ -21,7 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 -export([add_endpoint/8, find_endpoint/1, add_as/7, find_as/1,
-		add_sg/7, find_sg/1]).
+		add_sg/7, find_sg/1, start_endpoint/1]).
 
 -include("gtt.hrl").
 
@@ -46,7 +46,7 @@
 %% @doc Create an endpoint
 add_endpoint(Name, Address, Port, SCTPRole,
 		M3UARole, Callback, Options, Node) when is_tuple(Address),
-		is_port(Port), ((SCTPRole == client) orelse (SCTPRole == server)),
+		is_integer(Port), ((SCTPRole == client) orelse (SCTPRole == server)),
 		((M3UARole == sgp) orelse (M3UARole == asp)), is_tuple(Callback) ->
 	F = fun() ->
 			GttEP = #gtt_endpoint{name = Name, address = Address,
@@ -189,6 +189,47 @@ find_sg(SgName) ->
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
+
+-spec start_endpoint(EndPointName) -> Result
+	when
+		EndPointName :: term(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Start new m3ua endpoint
+start_endpoint(EndPointName) ->
+	F = fun() ->
+		case mnesia:read(gtt_endpoint, EndPointName, write) of
+			[#gtt_endpoint{sctp_role = SCTPRole, m3ua_role = M3UARole,
+					callback = Callback, address = Address, port = Port,
+					options = Options, node = Node} = EP] ->
+				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role, M3UARole},
+						{ip, Address}, {callback, Callback}] ++ Options,
+				case catch start_endpoint1(Node, Port, NewOptions) of
+					{ok, EndPoint} ->
+						NewEP = EP#gtt_endpoint{ep = EndPoint},
+						mnesia:write(NewEP);
+					{error, Reason} ->
+						throw(Reason);
+					{'EXIT', Reason} ->
+						throw(Reason)
+				end;
+			[] ->
+				throw(not_found)
+		end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			ok;
+		{aborted, {throw, Reason}} ->
+			{error, Reason};
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start_endpoint1(Node, Port, Options) when Node == node() ->
+	m3ua:open(Port, Options);
+start_endpoint1(Node, Port, Options) ->
+	rpc:call(Node, m3ua, open, [Port, Options]).
 
 %%----------------------------------------------------------------------
 %%  The gtt private API
