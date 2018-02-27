@@ -51,7 +51,7 @@
 %%
 start(normal = _StartType, _Args) ->
 	Tables = [gtt_endpoint, gtt_as, gtt_sg],
-	case mnesia:wait_for_table(Tables, 60000) of
+	case mnesia:wait_for_tables(Tables, 60000) of
 		ok ->
 			start1();
 		{timeout, _} ->
@@ -62,6 +62,27 @@ start(normal = _StartType, _Args) ->
 	end.
 %% @hidden
 start1() ->
+	F = fun() -> mnesia:all_keys(gtt_endpoint) end,
+	case mnesia:transaction(F) of
+		{atomic, EndPoints} ->
+			start2(EndPoints);
+		{error, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start2([EP | T]) ->
+	case gtt:start_endpoint(EP) of
+		ok ->
+			start2(T);
+		{error, Reason} ->
+			error_logger:error_report(["failed to start endpoint",
+					{endpoint, EP}, {reason, Reason}, {module, ?MODULE}]),
+			start2(T)
+	end;
+start2([]) ->
+	start3().
+%% @hidden
+start3() ->
 	case supervisor:start_link(gtt_sup, []) of
 		{ok, GttSup} ->
 			{ok, GttSup};
