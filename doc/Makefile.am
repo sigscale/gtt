@@ -5,7 +5,8 @@
 modhtml = gtt.html
 		gtt_app.html \
 		gtt_sup.html \
-		gtt_server.html
+		gtt_server.html \
+		gtt_m3ua_cb.html
 
 doc_DATA = overview.edoc $(modhtml) \
 		modules-frame.html overview-summary.html \

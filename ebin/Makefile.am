@@ -10,7 +10,8 @@ EXTRA_DIST = gtt.app
 beam_DATA = gtt.beam \
 		gtt_app.beam \
 		gtt_sup.beam \
-		gtt_server.beam
+		gtt_server.beam \
+		gtt_m3ua_cb.beam
 
 %.beam:$(top_srcdir)/src/%.erl
 	$(ERLC) $(ERLCFLAGS) -I $(top_srcdir)/include $<
