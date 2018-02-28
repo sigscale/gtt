@@ -385,7 +385,7 @@ start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) ->
 		AsName :: term(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
-%% @doc Register remote Appication Server.
+%% @doc Register local Appication Server.
 start_as(AsName) ->
 	F = fun() ->
 		case mnesia:read(gtt_as, AsName, write) of
