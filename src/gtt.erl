@@ -281,8 +281,8 @@ start_endpoint2(_Node, _Remote, server, EP) ->
 -spec start_sg(AsName) -> Result
 	when
 		AsName :: term(),
-		Result :: ok | {error, Resgon},
-		Resgon :: term().
+		Result :: ok | {error, Reason},
+		Reason :: term().
 %% @doc Register remote Appication Server.
 start_sg(AsName) ->
 	F = fun() ->
@@ -292,10 +292,10 @@ start_sg(AsName) ->
 				case start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) of
 					ok ->
 						ok;
-					{badrpc, Resgon} ->
-						throw(Resgon);
-					{error, Resgon} ->
-						throw(Resgon)
+					{badrpc, Reason} ->
+						throw(Reason);
+					{error, Reason} ->
+						throw(Reason)
 				end;
 			[] ->
 				throw(not_found)
@@ -304,10 +304,10 @@ start_sg(AsName) ->
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
 			ok;
-		{aborted, {throw, Resgon}} ->
-			{error, Resgon};
-		{aborted, Resgon} ->
-			{error, Resgon}
+		{aborted, {throw, Reason}} ->
+			{error, Reason};
+		{aborted, Reason} ->
+			{error, Reason}
 	end.
 %% @hidden
 start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) when Node == node() ->
