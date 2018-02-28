@@ -209,15 +209,14 @@ start_endpoint(EndPointName) ->
 	F = fun() ->
 		case mnesia:read(gtt_endpoint, EndPointName, write) of
 			[#gtt_endpoint{sctp_role = SCTPRole, m3ua_role = M3UARole,
-					callback = Callback, local = Local, remote = Remote,
+					callback = Callback, local = {LocalAddr, LocalPort, Options},
 					node = Node} = EP] ->
-				case catch start_endpoint1(Node, Local,
-						Remote, SCTPRole, M3UARole, Callback) of
-					{ok, EndPoint, Assoc} ->
-						NewEP = EP#gtt_endpoint{ep = EndPoint, assoc = Assoc},
-						ok = mnesia:write(NewEP),
-						Association = #gtt_association{key = {EndPoint, Assoc}},
-						ok = mnesia:write(gtt_association, Association, write);
+				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
+					{callback, Callback, {ip, LocalAddr}}] ++ Options,
+				case catch start_endpoint1(Node, LocalPort, NewOptions) of
+					{ok, EndPoint} ->
+						NewEP = EP#gtt_endpoint{ep = EndPoint},
+						ok = mnesia:write(NewEP);
 					{error, Reason} ->
 						throw(Reason);
 					{'EXIT', Reason} ->
@@ -236,49 +235,17 @@ start_endpoint(EndPointName) ->
 			{error, Reason}
 	end.
 %% @hidden
-start_endpoint1(Node, {LocalAddr, LocalPort, Options},
-		Remote, SCTPRole, M3UARole, Callback) when Node == node() ->
-	NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
-			{callback, Callback, {ip, LocalAddr}}] ++ Options,
-	case m3ua:open(LocalPort, NewOptions) of
+start_endpoint1(Node, Port, Options) when Node == node() ->
+	m3ua:open(Port, Options);
+start_endpoint1(Node, Port, Options) ->
+	case rpc:call(Node, m3ua, open, [Port, Options]) of
 		{ok, EP} ->
-			start_endpoint2(Node, Remote, SCTPRole, EP);
-		{error, Reason} ->
-			{error, Reason}
-	end;
-start_endpoint1(Node, {LocalAddr, LocalPort, Options},
-		Remote, SCTPRole, M3UARole, Callback) ->
-	NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
-			{callback, Callback}, {ip, LocalAddr}] ++ Options,
-	case rpc:call(Node, m3ua, open, [LocalPort, NewOptions]) of
-		{ok, EP} ->
-			start_endpoint2(Node, Remote, SCTPRole, EP);
+			{ok, EP};
 		{error, Reason} ->
 			{error, Reason};
 		{badrpc, Reason} ->
 			{error, Reason}
 	end.
-%% @hidden
-start_endpoint2(Node, {RemoteAddr, RemotePort, Options}, client, EP)
-		when Node == node() ->
-	case m3ua:sctp_establish(EP, RemoteAddr, RemotePort, Options) of
-		{ok, Assoc} ->
-			{ok, EP, Assoc};
-		{error, Reason} ->
-			{error, Reason}
-	end;
-start_endpoint2(Node, {RemoteAddr, RemotePort, Options}, client, EP) ->
-	case rpc:call(Node, m3ua, sctp_establish,
-			[EP, RemoteAddr, RemotePort, Options]) of
-		{ok, Assoc} ->
-			{ok, EP, Assoc};
-		{error, Reason} ->
-			{error, Reason};
-		{badrpc, Reason} ->
-			{error, Reason}
-	end;
-start_endpoint2(_Node, _Remote, server, EP) ->
-	{ok, EP, undefined}.
 
 
 -spec start_sg(AsName) -> Result
