@@ -7,6 +7,6 @@
 				gtt_sup,
 				gtt_server]},
 		{registered, [gtt]},
-		{applications, [kernel, stdlib]},
+		{applications, [kernel, stdlib, m3ua, sccp]},
 		{env, []},
 		{mod, {gtt_app, []}}]}.
