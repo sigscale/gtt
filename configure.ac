@@ -58,6 +58,8 @@ AC_SUBST(eincludedir)
 AC_ERLANG_SUBST_ERTS_VER
 AC_ERLANG_CHECK_LIB([kernel], [], [AC_MSG_ERROR([kernel was not found!])])
 AC_ERLANG_CHECK_LIB([stdlib], [], [AC_MSG_ERROR([stdlib was not found!])])
+AC_ERLANG_CHECK_LIB([m3ua], [], [AC_MSG_ERROR([m3ua was not found!])])
+AC_ERLANG_CHECK_LIB([sccp], [], [AC_MSG_ERROR([sccp was not found!])])
 
 
 ##
