@@ -20,8 +20,9 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_endpoint/7, find_endpoint/1, add_as/7, find_as/1,
-		add_sg/7, find_sg/1, start_endpoint/1, start_sg/1]).
+-export([add_endpoint/7, find_endpoint/1, start_endpoint/1]).
+-export([add_sg/7, find_sg/1, start_sg/1]).
+-export([add_as/8, find_as/1, start_as/1]).
 
 -include("gtt.hrl").
 
@@ -86,7 +87,7 @@ find_endpoint(EndPointName) ->
 			{error, Reason}
 	end.
 
--spec add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node) -> Result
+-spec add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs) -> Result
 	when
 		Name :: term(),
 		NA :: pos_integer(),
@@ -95,6 +96,7 @@ find_endpoint(EndPointName) ->
 		MinAsp :: pos_integer(),
 		MaxAsp :: pos_integer(),
 		Node :: node(),
+		EPs :: [EPRef],
 		Result :: {ok, AS} | {error, Reason},
 		Key :: {DPC, SIs, OPCs},
 		DPC :: pos_integer(),
@@ -102,17 +104,18 @@ find_endpoint(EndPointName) ->
 		OPCs :: [OPC],
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
+		EPRef :: term(),
 		AS :: #gtt_as{},
 		Reason :: term().
 %% @doc Create new Application Server entry
-add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node)
+add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
 		when is_integer(NA), is_list(Keys), is_integer(MinAsp),
 		is_integer(MaxAsp), ((Mode == override) orelse (Mode == loadshare)
-		orelse (Mode == broadcast))->
+		orelse (Mode == broadcast)) ->
 	F = fun() ->
 			GttAs = #gtt_as{name = Name, na = NA, keys = Keys,
 					mode = Mode, min_asp = MinAsp, max_asp = MaxAsp,
-					node = Node},
+					node = Node, eps = EPs},
 			mnesia:write(gtt_as, GttAs, write),
 			GttAs
 	end,
@@ -206,15 +209,14 @@ start_endpoint(EndPointName) ->
 	F = fun() ->
 		case mnesia:read(gtt_endpoint, EndPointName, write) of
 			[#gtt_endpoint{sctp_role = SCTPRole, m3ua_role = M3UARole,
-					callback = Callback, local = Local, remote = Remote,
+					callback = Callback, local = {LocalAddr, LocalPort, Options},
 					node = Node} = EP] ->
-				case catch start_endpoint1(Node, Local,
-						Remote, SCTPRole, M3UARole, Callback) of
-					{ok, EndPoint, Assoc} ->
-						NewEP = EP#gtt_endpoint{ep = EndPoint, assoc = Assoc},
-						ok = mnesia:write(NewEP),
-						Association = #gtt_association{key = {EndPoint, Assoc}},
-						ok = mnesia:write(gtt_association, Association, write);
+				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
+					{callback, Callback, {ip, LocalAddr}}] ++ Options,
+				case catch start_endpoint1(Node, LocalPort, NewOptions) of
+					{ok, EndPoint} ->
+						NewEP = EP#gtt_endpoint{ep = EndPoint},
+						ok = mnesia:write(NewEP);
 					{error, Reason} ->
 						throw(Reason);
 					{'EXIT', Reason} ->
@@ -233,69 +235,37 @@ start_endpoint(EndPointName) ->
 			{error, Reason}
 	end.
 %% @hidden
-start_endpoint1(Node, {LocalAddr, LocalPort, Options},
-		Remote, SCTPRole, M3UARole, Callback) when Node == node() ->
-	NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
-			{callback, Callback, {ip, LocalAddr}}] ++ Options,
-	case m3ua:open(LocalPort, NewOptions) of
+start_endpoint1(Node, Port, Options) when Node == node() ->
+	m3ua:open(Port, Options);
+start_endpoint1(Node, Port, Options) ->
+	case rpc:call(Node, m3ua, open, [Port, Options]) of
 		{ok, EP} ->
-			start_endpoint2(Node, Remote, SCTPRole, EP);
-		{error, Reason} ->
-			{error, Reason}
-	end;
-start_endpoint1(Node, {LocalAddr, LocalPort, Options},
-		Remote, SCTPRole, M3UARole, Callback) ->
-	NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
-			{callback, Callback}, {ip, LocalAddr}] ++ Options,
-	case rpc:call(Node, m3ua, open, [LocalPort, NewOptions]) of
-		{ok, EP} ->
-			start_endpoint2(Node, Remote, SCTPRole, EP);
+			{ok, EP};
 		{error, Reason} ->
 			{error, Reason};
 		{badrpc, Reason} ->
 			{error, Reason}
 	end.
-%% @hidden
-start_endpoint2(Node, {RemoteAddr, RemotePort, Options}, client, EP)
-		when Node == node() ->
-	case m3ua:sctp_establish(EP, RemoteAddr, RemotePort, Options) of
-		{ok, Assoc} ->
-			{ok, EP, Assoc};
-		{error, Reason} ->
-			{error, Reason}
-	end;
-start_endpoint2(Node, {RemoteAddr, RemotePort, Options}, client, EP) ->
-	case rpc:call(Node, m3ua, sctp_establish,
-			[EP, RemoteAddr, RemotePort, Options]) of
-		{ok, Assoc} ->
-			{ok, EP, Assoc};
-		{error, Reason} ->
-			{error, Reason};
-		{badrpc, Reason} ->
-			{error, Reason}
-	end;
-start_endpoint2(_Node, _Remote, server, EP) ->
-	{ok, EP, undefined}.
 
 
--spec start_sg(AsName) -> Result
+-spec start_sg(SgName) -> Result
 	when
-		AsName :: term(),
-		Result :: ok | {error, Resgon},
-		Resgon :: term().
+		SgName :: term(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
 %% @doc Register remote Appication Server.
-start_sg(AsName) ->
+start_sg(SgName) ->
 	F = fun() ->
-		case mnesia:read(gtt_sg, AsName, read) of
+		case mnesia:read(gtt_sg, SgName, read) of
 			[#gtt_sg{na = NA, keys = Keys, mode = Mode,
 					min_asp = Min, max_asp = Max, node = Node}] ->
-				case start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) of
+				case start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) of
 					ok ->
 						ok;
-					{badrpc, Resgon} ->
-						throw(Resgon);
-					{error, Resgon} ->
-						throw(Resgon)
+					{badrpc, Reason} ->
+						throw(Reason);
+					{error, Reason} ->
+						throw(Reason)
 				end;
 			[] ->
 				throw(not_found)
@@ -304,17 +274,143 @@ start_sg(AsName) ->
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
 			ok;
-		{aborted, {throw, Resgon}} ->
-			{error, Resgon};
-		{aborted, Resgon} ->
-			{error, Resgon}
+		{aborted, {throw, Reason}} ->
+			{error, Reason};
+		{aborted, Reason} ->
+			{error, Reason}
 	end.
 %% @hidden
-start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) when Node == node() ->
-	m3ua:as_add(AsName, NA, Keys, Mode, Min, Max);
-start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) ->
-	rpc:call(Node, m3ua, as_add, [AsName, NA, Keys, Mode, Min, Max]).
+start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) when Node == node() ->
+	m3ua:as_add(SgName, NA, Keys, Mode, Min, Max);
+start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) ->
+	rpc:call(Node, m3ua, as_add, [SgName, NA, Keys, Mode, Min, Max]).
 
+-spec start_as(AsName) -> Result
+	when
+		AsName :: term(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Register remote Appication Server.
+start_as(AsName) ->
+	F = fun() ->
+		case mnesia:read(gtt_as, AsName, write) of
+			[#gtt_as{eps = EpRefs} = As] ->
+				case start_as1(As, EpRefs) of
+					ok ->
+						ok;
+					{badrpc, Reason} ->
+						throw(Reason);
+					{error, Reason} ->
+						throw(Reason)
+				end;
+			[] ->
+				throw(not_found)
+		end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			ok;
+		{aborted, {throw, Reason}} ->
+			{error, Reason};
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start_as1(#gtt_as{max_asp = Max} = As, [EPRef | T]) ->
+	case mnesia:read(gtt_endpoint, EPRef, read) of
+		[#gtt_endpoint{ep = EP, node = Node,
+				remote = {RAddr, RPort, Options},
+				m3ua_role = M3UARole, sctp_role = SCTPRole}] ->
+			NewAs = start_as2(Node, EP, RAddr, RPort,
+					Options, SCTPRole, M3UARole, Max, As),
+			start_as1(NewAs, T);
+		[] ->
+			error_logger:error_report(["Endpoint not found",
+					{ep, EPRef}, {reason, epunavilable},
+					{module, ?MODULE}]),
+			start_as1(As, T)
+	end;
+start_as1(As, []) ->
+	{ok, As}.
+%% @hidden
+start_as2(Node1, _, _, _, _, _, _, _, #gtt_as{node = Node2} = As)
+		when Node1 /= Node2 ->
+	As;
+start_as2(_, _, _, _, _, _, _, 0 = _Max, As) ->
+	As;
+start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
+		Max, #gtt_as{name = AsName, keys = Keys, na = Na, mode = Mode,
+		asp = Asps} = As) when Node == node() ->
+	case m3ua:sctp_establish(EP, Address, Port, Options) of
+		{ok, Assoc} ->
+			case start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) of
+				ok ->
+					NewAsps = [{EP, Assoc} | Asps],
+					start_as2(Node, EP, Address, Port, Options,
+						SCTPRole, M3UARole, Max - 1, As#gtt_as{asp = NewAsps});
+				{error, _Reason} ->
+					start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
+			end;
+		{error, Reason} ->
+			error_logger:error_report(["Faild to establish sctp connection",
+					{ep, EP}, {address, Address}, {port, Port},
+					{module, ?MODULE}, {reason, Reason}]),
+			start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
+	end;
+start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
+		Max, #gtt_as{name = AsName, keys = Keys, na = Na, mode = Mode,
+		asp = Asps} = As) ->
+	case rpc:call(Node, m3ua, sctp_establish, [EP, Address, Port, Options]) of
+		{ok, Assoc} ->
+			case start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) of
+				ok ->
+					NewAsps = [{EP, Assoc} | Asps],
+					start_as2(Node, EP, Address, Port, Options,
+							SCTPRole, M3UARole, Max - 1, As#gtt_as{asp = NewAsps});
+				{error, _Reason} ->
+					start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
+			end;
+		{_, Reason} ->
+			error_logger:error_report(["Faild to establish sctp connection",
+					{ep, EP}, {address, Address}, {port, Port},
+					{module, ?MODULE}, {reason, Reason}]),
+			start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
+	end.
+%% @hidden
+start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) when Node == node() ->
+	case m3ua:asp_up(EP, Assoc) of
+		ok ->
+			start_as4(Node, EP, Assoc, AsName, Na, Keys, Mode);
+		{error, Reason} ->
+			{error, Reason}
+	end;
+start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) ->
+	case rpc:call(Node, m3ua, asp_up, [EP, Assoc]) of
+		ok ->
+			start_as4(Node, EP, Assoc, AsName, Na, Keys, Mode);
+		{error, Reason} ->
+			{error, Reason};
+		{badrpc, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) when Node == node() ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, AsName) of
+		{ok, _} ->
+			ok;
+		{error, Reason} ->
+			{error, Reason}
+	end;
+start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) ->
+	case rpc:call(Node, m3ua, register,
+			[EP, Assoc, NA, Keys, Mode, AsName]) of
+		{ok, _} ->
+			ok;
+		{error, Reason} ->
+			{error, Reason};
+		{badrpc, Reason} ->
+			{error, Reason}
+	end.
 
 %%----------------------------------------------------------------------
 %%  The gtt private API

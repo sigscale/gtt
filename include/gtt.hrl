@@ -15,6 +15,11 @@
 %%% limitations under the License.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%
+
+-type tmt() :: override | loadshare | broadcast.
+-type key() :: {DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}.
+-type routing_key() :: {NA :: pos_integer(), Keys :: [key()], TMT :: tmt()}.
+
 -record(gtt_endpoint,
 		{name :: term(),
 		sctp_role :: client | server,
@@ -23,8 +28,7 @@
 		local :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		remote :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		node :: node(),
-		ep :: pid(),
-		assoc :: pos_integer() | undefined}).
+		ep :: pid()}).
 
 -record(gtt_as,
 		{name :: term(),
@@ -33,7 +37,9 @@
 		mode :: override | loadshare | broadcast,
 		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
-		node :: node()}).
+		node :: node(),
+		asp :: [{EP :: pid(), Assoc :: pos_integer()}],
+		eps :: [EPRef :: term()]}).
 
 -record(gtt_sg,
 		{name :: term(),
@@ -44,5 +50,10 @@
 		max_asp :: pos_integer(),
 		node :: node()}).
 
--record(gtt_association,
-		{key :: {EP :: pid(), Assoc :: pos_integer()}}).
+-record(gtt_pc,
+		{dpc :: pos_integer(),
+		mask :: non_neg_integer(),
+		na :: pos_integer(),
+		as :: routing_key(),
+		opc :: [pos_integer()]}).
+
