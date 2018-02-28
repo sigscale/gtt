@@ -23,7 +23,7 @@
 -export([add_endpoint/7, find_endpoint/1, start_endpoint/1]).
 -export([add_sg/7, find_sg/1, start_sg/1]).
 -export([add_as/8, find_as/1, start_as/1]).
--export([add_key/1]).
+-export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
 
 -include("gtt.hrl").
 
@@ -222,6 +222,77 @@ add_key({NA, Keys, _} = Key) when is_list(Keys),
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
+
+-spec find_pc(DPC) -> Result
+	when
+		DPC :: pos_integer(),
+		Result :: [ASref],
+		ASref :: routing_key().
+%% @equiv find_pc(undefined, DPC, undefined, undefined)
+find_pc(DPC) ->
+	find_pc(undefined, DPC, undefined, undefined).
+
+-spec find_pc(DPC, SI) -> Result
+	when
+		DPC :: pos_integer(),
+		SI :: pos_integer() | undefined,
+		Result :: [ASref],
+		ASref :: routing_key().
+%% @equiv find_pc(undefined, DPC, SI, undefined)
+find_pc(DPC, SI) ->
+	find_pc(undefined, DPC, SI, undefined).
+
+-spec find_pc(DPC, SI, OPC) -> Result
+	when
+		DPC :: pos_integer(),
+		SI :: pos_integer() | undefined,
+		OPC :: pos_integer() | undefined,
+		Result :: [ASref],
+		ASref :: routing_key().
+%% @equiv find_pc(undefined, DPC, SI, OPC)
+find_pc(DPC, SI, OPC) ->
+	find_pc(undefined, DPC, SI, OPC).
+
+-spec find_pc(NA, DPC, SI, OPC) -> Result
+	when
+		NA :: pos_integer() | undefined,
+		DPC :: pos_integer(),
+		SI :: pos_integer() | undefined,
+		OPC :: pos_integer() | undefined,
+		Result :: [ASref],
+		ASref :: routing_key().
+%% @doc Find Application Servers matching destination.
+find_pc(NA, DPC, SI, OPC)
+		when ((NA == undefined) or is_integer(NA)),
+		((DPC == undefined) or is_integer(DPC)),
+		((SI == undefined) or is_integer(SI)),
+		((OPC == undefined) or is_integer(OPC)) ->
+	find_pc1(NA, DPC, SI, OPC, #gtt_pc{}).
+%% @hidden
+find_pc1(undefined, DPC, SI, OPC, GTT) ->
+	find_pc2(DPC, SI, OPC, GTT#gtt_pc{na = '_'});
+find_pc1(NA, DPC, SI, OPC, GTT) when is_integer(NA) ->
+	find_pc2(DPC, SI, OPC, GTT#gtt_pc{na = NA}).
+%% @hidden
+find_pc2(DPC, SI, undefined, GTT) ->
+	find_pc3(DPC, SI, GTT#gtt_pc{opc = '_'});
+find_pc2(DPC, SI, OPC, GTT) when is_integer(OPC) ->
+	% @todo match in list of OPC
+	find_pc3(DPC, SI, GTT#gtt_pc{opc = [OPC]}).
+%% @hidden
+find_pc3(DPC, undefined, GTT) ->
+	find_pc4(DPC, GTT#gtt_pc{si = '_'});
+find_pc3(DPC, SI, GTT) when is_integer(SI) ->
+	% @todo match in list of SI
+	find_pc4(DPC, GTT#gtt_pc{si = [SI]}).
+%% @hidden
+find_pc4(DPC, GTT) when is_integer(DPC) ->
+	MatchHead = GTT#gtt_pc{dpc = DPC, mask = '_', as = '$1'},
+	MatchConditions = [],
+	MatchBody = ['$1'],
+	MatchFunction = {MatchHead, MatchConditions, MatchBody},
+	MatchExpression = [MatchFunction],
+	ets:select(gtt_pc, MatchExpression).
 
 -spec start_endpoint(EndPointName) -> Result
 	when
