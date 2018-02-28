@@ -262,14 +262,34 @@ install5(Nodes, Tables) ->
 			{attributes, record_info(fields, gtt_sg)}]) of
 		{atomic, ok} ->
 			error_logger:info_msg("Created new gtt_sg table.~n"),
-			{ok, lists:reverse([gtt_sg | Tables])};
+			install6(Nodes, [gtt_sg | Tables]);
 		{aborted, {not_active, _, Node} = Reason} ->
 			error_logger:error_report(["Mnesia not started on node",
 					{node, Node}]),
 			{error, Reason};
 		{aborted, {already_exists, gtt_sg}} ->
 			error_logger:info_msg("Found existing gtt_sg table.~n"),
-			{ok, lists:reverse([gtt_sg | Tables])};
+			install6(Nodes, [gtt_sg | Tables]);
+		{aborted, Reason} ->
+			error_logger:error_report([mnesia:error_description(Reason),
+				{error, Reason}]),
+			{error, Reason}
+	end.
+%% @hidden
+install6(Nodes, Tables) ->
+	case mnesia:create_table(gtt_pc, [{disc_copies, Nodes},
+			{attributes, record_info(fields, gtt_pc)},
+			{type, bag}]) of
+		{atomic, ok} ->
+			error_logger:info_msg("Created new gtt_pc table.~n"),
+			{ok, lists:reverse([gtt_pc | Tables])};
+		{aborted, {not_active, _, Node} = Reason} ->
+			error_logger:error_report(["Mnesia not started on node",
+					{node, Node}]),
+			{error, Reason};
+		{aborted, {already_exists, gtt_pc}} ->
+			error_logger:info_msg("Found existing gtt_pc table.~n"),
+			{ok, lists:reverse([gtt_pc | Tables])};
 		{aborted, Reason} ->
 			error_logger:error_report([mnesia:error_description(Reason),
 				{error, Reason}]),

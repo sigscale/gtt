@@ -15,6 +15,11 @@
 %%% limitations under the License.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%
+
+-type tmt() :: override | loadshare | broadcast.
+-type key() :: {DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}.
+-type routing_key() :: {NA :: pos_integer(), Keys :: [key()], TMT :: tmt()}.
+
 -record(gtt_endpoint,
 		{name :: term(),
 		sctp_role :: client | server,
@@ -44,4 +49,11 @@
 		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
 		node :: node()}).
+
+-record(gtt_pc,
+		{dpc :: pos_integer(),
+		mask :: non_neg_integer(),
+		na :: pos_integer(),
+		as :: routing_key(),
+		opc :: [pos_integer()]}).
 
