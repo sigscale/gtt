@@ -53,7 +53,7 @@
 -record(gtt_pc,
 		{dpc :: pos_integer(),
 		mask = 0 :: non_neg_integer(),
-		na :: pos_integer() | undefined
+		na :: pos_integer() | undefined,
 		si = [] :: [byte()],
 		opc = [] :: [pos_integer()],
 		as :: routing_key()}).
