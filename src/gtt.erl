@@ -248,18 +248,18 @@ start_endpoint1(Node, Port, Options) ->
 	end.
 
 
--spec start_sg(AsName) -> Result
+-spec start_sg(SgName) -> Result
 	when
-		AsName :: term(),
+		SgName :: term(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Register remote Appication Server.
-start_sg(AsName) ->
+start_sg(SgName) ->
 	F = fun() ->
-		case mnesia:read(gtt_sg, AsName, read) of
+		case mnesia:read(gtt_sg, SgName, read) of
 			[#gtt_sg{na = NA, keys = Keys, mode = Mode,
 					min_asp = Min, max_asp = Max, node = Node}] ->
-				case start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) of
+				case start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) of
 					ok ->
 						ok;
 					{badrpc, Reason} ->
@@ -280,10 +280,10 @@ start_sg(AsName) ->
 			{error, Reason}
 	end.
 %% @hidden
-start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) when Node == node() ->
-	m3ua:as_add(AsName, NA, Keys, Mode, Min, Max);
-start_sg1(Node, AsName, NA, Keys, Mode, Min, Max) ->
-	rpc:call(Node, m3ua, as_add, [AsName, NA, Keys, Mode, Min, Max]).
+start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) when Node == node() ->
+	m3ua:as_add(SgName, NA, Keys, Mode, Min, Max);
+start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) ->
+	rpc:call(Node, m3ua, as_add, [SgName, NA, Keys, Mode, Min, Max]).
 
 
 %%----------------------------------------------------------------------
