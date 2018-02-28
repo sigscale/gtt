@@ -23,6 +23,7 @@
 -export([add_endpoint/7, find_endpoint/1, start_endpoint/1]).
 -export([add_sg/7, find_sg/1, start_sg/1]).
 -export([add_as/8, find_as/1, start_as/1]).
+-export([add_key/1]).
 
 -include("gtt.hrl").
 
@@ -195,6 +196,29 @@ find_sg(SgName) ->
 			{error, not_found};
 		{atomic, [#gtt_sg{} = SG]} ->
 			{ok, SG};
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
+
+-spec add_key(Key) -> Result
+	when
+		Key :: routing_key(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Add point codes to Point Code table.
+add_key({NA, Keys, _} = Key) when is_list(Keys),
+		(is_integer(NA) or (NA == undefined)) ->
+	Fadd = fun(F, [{DPC, SI, OPC} | T]) when is_integer(DPC),
+					is_list(SI), is_list(OPC) ->
+				PC = #gtt_pc{dpc = DPC, na = NA, si = SI, opc = OPC, as = Key},
+				ok = mnesia:write(PC),
+				F(F, T);
+			(_, []) ->
+				ok
+	end,
+	case mnesia:transaction(Fadd, [Fadd, Keys]) of
+		{atomic, ok} ->
+			ok;
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
