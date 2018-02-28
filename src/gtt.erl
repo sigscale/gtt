@@ -20,8 +20,9 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_endpoint/7, find_endpoint/1, add_as/8, find_as/1,
-		add_sg/7, find_sg/1, start_endpoint/1, start_sg/1]).
+-export([add_endpoint/7, find_endpoint/1, start_endpoint/1]).
+-export([add_sg/7, find_sg/1, start_sg/1]).
+-export([add_as/8, find_as/1]).
 
 -include("gtt.hrl").
 
