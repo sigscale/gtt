@@ -19,7 +19,7 @@
 %%%	module implements a handler for a User Service Access Point (USAP)
 %%% 	of an M3UA stack SAP in the {@link //gtt. gtt} application.
 %%%
--module(gtt).
+-module(gtt_m3ua_cb).
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
 %% m3ua_asp_fsm callbacks
