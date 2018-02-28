@@ -23,8 +23,7 @@
 		local :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		remote :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		node :: node(),
-		ep :: pid(),
-		assoc :: pos_integer() | undefined}).
+		ep :: pid()}).
 
 -record(gtt_as,
 		{name :: term(),
@@ -34,6 +33,7 @@
 		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
 		node :: node(),
+		asp :: [{EP :: pid(), Assoc :: pos_integer()}],
 		eps :: [EPRef :: term()]}).
 
 -record(gtt_sg,
