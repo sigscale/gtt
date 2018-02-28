@@ -20,7 +20,7 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_endpoint/7, find_endpoint/1, add_as/7, find_as/1,
+-export([add_endpoint/7, find_endpoint/1, add_as/8, find_as/1,
 		add_sg/7, find_sg/1, start_endpoint/1, start_sg/1]).
 
 -include("gtt.hrl").
@@ -86,7 +86,7 @@ find_endpoint(EndPointName) ->
 			{error, Reason}
 	end.
 
--spec add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node) -> Result
+-spec add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs) -> Result
 	when
 		Name :: term(),
 		NA :: pos_integer(),
@@ -95,6 +95,7 @@ find_endpoint(EndPointName) ->
 		MinAsp :: pos_integer(),
 		MaxAsp :: pos_integer(),
 		Node :: node(),
+		EPs :: [EPRef],
 		Result :: {ok, AS} | {error, Reason},
 		Key :: {DPC, SIs, OPCs},
 		DPC :: pos_integer(),
@@ -102,17 +103,18 @@ find_endpoint(EndPointName) ->
 		OPCs :: [OPC],
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
+		EPRef :: term(),
 		AS :: #gtt_as{},
 		Reason :: term().
 %% @doc Create new Application Server entry
-add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node)
+add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
 		when is_integer(NA), is_list(Keys), is_integer(MinAsp),
 		is_integer(MaxAsp), ((Mode == override) orelse (Mode == loadshare)
-		orelse (Mode == broadcast))->
+		orelse (Mode == broadcast)) ->
 	F = fun() ->
 			GttAs = #gtt_as{name = Name, na = NA, keys = Keys,
 					mode = Mode, min_asp = MinAsp, max_asp = MaxAsp,
-					node = Node},
+					node = Node, eps = EPs},
 			mnesia:write(gtt_as, GttAs, write),
 			GttAs
 	end,

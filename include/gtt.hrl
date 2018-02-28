@@ -33,7 +33,8 @@
 		mode :: override | loadshare | broadcast,
 		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
-		node :: node()}).
+		node :: node(),
+		eps :: [EPRef :: term()]}).
 
 -record(gtt_sg,
 		{name :: term(),
