@@ -304,7 +304,7 @@ start_endpoint(EndPointName) ->
 			[#gtt_endpoint{sctp_role = SCTPRole, m3ua_role = M3UARole,
 					callback = Callback, local = {LocalAddr, LocalPort, Options},
 					node = Node} = EP] ->
-				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
+				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role, M3UARole},
 					{ip, LocalAddr}] ++ Options,
 				case catch start_endpoint1(Node, LocalPort, NewOptions, Callback) of
 					{ok, EndPoint} ->
