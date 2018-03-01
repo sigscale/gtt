@@ -2,7 +2,7 @@
 ##
 ## Process this file with automake to produce Makefile.in
 
-modhtml = gtt.html
+modhtml = gtt.html \
 		gtt_app.html \
 		gtt_sup.html \
 		gtt_server.html \
