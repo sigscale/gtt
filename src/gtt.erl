@@ -292,7 +292,7 @@ find_pc4(DPC, GTT) when is_integer(DPC) ->
 	MatchBody = ['$1'],
 	MatchFunction = {MatchHead, MatchConditions, MatchBody},
 	MatchExpression = [MatchFunction],
-	ets:select(gtt_pc, MatchExpression).
+	mnesia:dirty_select(gtt_pc, MatchExpression).
 
 -spec start_endpoint(EndPointName) -> Result
 	when
