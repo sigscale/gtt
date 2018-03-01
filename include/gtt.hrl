@@ -18,10 +18,6 @@
 
 -include_lib("m3ua/include/m3ua.hrl").
 
--type tmt() :: override | loadshare | broadcast.
--type key() :: {DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}.
--type routing_key() :: {NA :: pos_integer(), Keys :: [key()], TMT :: tmt()}.
-
 -record(gtt_endpoint,
 		{name :: term(),
 		sctp_role :: client | server,
