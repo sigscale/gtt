@@ -16,6 +16,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%
 
+-include_lib("m3ua/include/m3ua.hrl").
+
 -type tmt() :: override | loadshare | broadcast.
 -type key() :: {DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}.
 -type routing_key() :: {NA :: pos_integer(), Keys :: [key()], TMT :: tmt()}.
@@ -24,7 +26,7 @@
 		{name :: term(),
 		sctp_role :: client | server,
 		m3ua_role :: sgp | asp,
-		callback :: {Module :: atom(), State :: term()},
+		callback :: atom() | #m3ua_fsm_cb{},
 		local :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		remote :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		node :: node(),

@@ -24,7 +24,7 @@
 
 %% m3ua_asp_fsm callbacks
 -export([init/3, transfer/11, pause/7, resume/7, status/7,
-		asp_up/4, asp_down/4, asp_active/4, asp_inactive/4]).
+		register/7, asp_up/4, asp_down/4, asp_active/4, asp_inactive/4]).
 
 -include("gtt.hrl").
 
@@ -123,6 +123,29 @@ resume(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 %%% 	or to indicate an unavailable remote user part.
 status(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 	{ok, State}.
+
+-spec register(Fsm, EP, Assoc, NA, Keys, TMT, State) -> Result
+	when
+		Fsm :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		NA :: pos_integer(),
+		Keys :: [key()],
+		TMT :: tmt(),
+		State :: term(),
+		Result :: {ok, NewState} | {error, Reason},
+		NewState :: term(),
+		Reason :: term().
+%%  @doc Called when Registration Response message with a
+%%		registration status of successful from its peer or
+%%		successfully processed an incoming Registration Request message.
+register(_Fsm, _EP, _Assoc, NA, Keys, TMT, State) ->
+	case gtt:add_key({NA, Keys, TMT}) of
+		ok ->
+			{ok, State};
+		{error, Reason} ->
+			{error, Reason}
+	end.
 
 -spec asp_up(Fsm, EP, Assoc, State) -> Result
 	when

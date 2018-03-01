@@ -39,13 +39,11 @@
 		Remote :: {Address, Port, Options},
 		SCTPRole :: client | server,
 		M3UARole :: sgp | asp,
-		Callback :: {Module, State},
+		Callback :: atom() | #m3ua_fsm_cb{},
 		Node :: node(),
 		Port :: inet:port_number(),
 		Address :: inet:ip_address(),
 		Options :: list(),
-		Module :: atom(),
-		State :: term(),
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_endpoint{},
 		Reason :: term().
@@ -307,8 +305,8 @@ start_endpoint(EndPointName) ->
 					callback = Callback, local = {LocalAddr, LocalPort, Options},
 					node = Node} = EP] ->
 				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role = M3UARole},
-					{callback, Callback, {ip, LocalAddr}}] ++ Options,
-				case catch start_endpoint1(Node, LocalPort, NewOptions) of
+					{ip, LocalAddr}] ++ Options,
+				case catch start_endpoint1(Node, LocalPort, NewOptions, Callback) of
 					{ok, EndPoint} ->
 						NewEP = EP#gtt_endpoint{ep = EndPoint},
 						ok = mnesia:write(NewEP);
@@ -330,10 +328,10 @@ start_endpoint(EndPointName) ->
 			{error, Reason}
 	end.
 %% @hidden
-start_endpoint1(Node, Port, Options) when Node == node() ->
-	m3ua:open(Port, Options);
-start_endpoint1(Node, Port, Options) ->
-	case rpc:call(Node, m3ua, open, [Port, Options]) of
+start_endpoint1(Node, Port, Options, Callback) when Node == node() ->
+	m3ua:open(Port, Options, Callback);
+start_endpoint1(Node, Port, Options, Callback) ->
+	case rpc:call(Node, m3ua, open, [Port, Options, Callback]) of
 		{ok, EP} ->
 			{ok, EP};
 		{error, Reason} ->
