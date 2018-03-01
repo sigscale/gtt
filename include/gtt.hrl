@@ -26,7 +26,7 @@
 		local :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		remote :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		node :: node(),
-		ep :: pid()}).
+		ep :: pid() | undefined}).
 
 -record(gtt_as,
 		{name :: term(),
@@ -36,8 +36,8 @@
 		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
 		node :: node(),
-		asp :: [{EP :: pid(), Assoc :: pos_integer()}],
-		eps :: [EPRef :: term()]}).
+		asp = [] :: [{EP :: pid(), Assoc :: pos_integer()}],
+		eps = []:: [EPRef :: term()]}).
 
 -record(gtt_sg,
 		{name :: term(),
@@ -49,10 +49,10 @@
 		node :: node()}).
 
 -record(gtt_pc,
-		{dpc :: pos_integer(),
-		mask = 0 :: non_neg_integer(),
-		na :: pos_integer() | undefined,
-		si = [] :: [byte()],
-		opc = [] :: [pos_integer()],
-		as :: routing_key()}).
+		{dpc :: pos_integer() | undefined,
+		mask = 0 :: non_neg_integer() | '_',
+		na :: pos_integer() | '_' | undefined,
+		si = [] :: [byte()] | '_',
+		opc = [] :: [pos_integer()] | '_',
+		as :: routing_key() | '$1' | undefined}).
 
