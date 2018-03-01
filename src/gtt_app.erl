@@ -66,7 +66,7 @@ start1() ->
 	case mnesia:transaction(F) of
 		{atomic, EndPoints} ->
 			start2(EndPoints);
-		{error, Reason} ->
+		{aborted, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden

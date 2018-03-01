@@ -381,30 +381,20 @@ start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) ->
 -spec start_as(AsName) -> Result
 	when
 		AsName :: term(),
-		Result :: ok | {error, Reason},
-		Reason :: term().
+		Result :: ok.
 %% @doc Register local Appication Server.
 start_as(AsName) ->
 	F = fun() ->
 		case mnesia:read(gtt_as, AsName, write) of
 			[#gtt_as{eps = EpRefs} = As] ->
-				case start_as1(As, EpRefs) of
-					ok ->
-						ok;
-					{badrpc, Reason} ->
-						throw(Reason);
-					{error, Reason} ->
-						throw(Reason)
-				end;
+				start_as1(As, EpRefs);
 			[] ->
-				throw(not_found)
+				ok
 		end
 	end,
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
 			ok;
-		{aborted, {throw, Reason}} ->
-			{error, Reason};
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
@@ -424,7 +414,7 @@ start_as1(#gtt_as{max_asp = Max} = As, [EPRef | T]) ->
 			start_as1(As, T)
 	end;
 start_as1(As, []) ->
-	{ok, As}.
+	ok.
 %% @hidden
 start_as2(Node1, _, _, _, _, _, _, _, #gtt_as{node = Node2} = As)
 		when Node1 /= Node2 ->
