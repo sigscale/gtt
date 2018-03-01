@@ -14,8 +14,8 @@
 %%% See the License for the specific language governing permissions and
 %%% limitations under the License.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @doc This {@link //m3ua/m3ua_asp_fsm. m3ua_asp_fsm} or
-%%% 	{@link //m3ua/m3ua_sgp_fsm. m3ua_sgp_fsm} behaviour callback
+%%% @doc This {@link //m3ua/m3ua_asp_fsm. m3ua_asp_fsm}/{@link
+%%% 	//m3ua/m3ua_sgp_fsm. m3ua_sgp_fsm} behaviour callback
 %%%	module implements a handler for a User Service Access Point (USAP)
 %%% 	of an M3UA stack SAP in the {@link //gtt. gtt} application.
 %%%
@@ -35,6 +35,7 @@
 %%----------------------------------------------------------------------
 %%  The m3ua_[asp|sgp]_fsm callabcks
 %%----------------------------------------------------------------------
+
 -spec init(Fsm, EP, Assoc) -> Result
 	when
 		Fsm :: pid(),
