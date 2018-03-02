@@ -354,7 +354,7 @@ start_sg(SgName) ->
 			[#gtt_sg{na = NA, keys = Keys, mode = Mode,
 					min_asp = Min, max_asp = Max, node = Node}] ->
 				case start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) of
-					ok ->
+					{ok, _} ->
 						ok;
 					{badrpc, Reason} ->
 						throw(Reason);
@@ -439,7 +439,7 @@ start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
 			error_logger:error_report(["Faild to establish sctp connection",
 					{ep, EP}, {address, Address}, {port, Port},
 					{module, ?MODULE}, {reason, Reason}]),
-			start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
+			As
 	end;
 start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
 		Max, #gtt_as{name = AsName, keys = Keys, na = Na, mode = Mode,
@@ -458,7 +458,7 @@ start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
 			error_logger:error_report(["Faild to establish sctp connection",
 					{ep, EP}, {address, Address}, {port, Port},
 					{module, ?MODULE}, {reason, Reason}]),
-			start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
+			As
 	end.
 %% @hidden
 start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) when Node == node() ->
