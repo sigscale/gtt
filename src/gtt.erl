@@ -51,7 +51,8 @@
 add_endpoint(Name, {LocalAddr, LocalPort, _} = Local,
 		{RemoteAddr, RemotePort, _} = Remote, SCTPRole, M3UARole,
 		Callback, Node) when is_tuple(LocalAddr), is_integer(LocalPort),
-		is_tuple(RemoteAddr), is_integer(RemotePort), is_tuple(Callback),
+		is_tuple(RemoteAddr), is_integer(RemotePort),
+		((is_tuple(Callback)) orelse (is_atom(Callback))),
 		((SCTPRole == client) orelse (SCTPRole == server)),
 		((M3UARole == sgp) orelse (M3UARole == asp))->
 	F = fun() ->
