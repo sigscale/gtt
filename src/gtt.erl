@@ -36,7 +36,7 @@
 	when
 		Name :: term(),
 		Local :: {Address, Port, Options},
-		Remote :: {Address, Port, Options},
+		Remote :: undefined | {Address, Port, Options},
 		SCTPRole :: client | server,
 		M3UARole :: sgp | asp,
 		Callback :: atom() | #m3ua_fsm_cb{},
@@ -49,9 +49,9 @@
 		Reason :: term().
 %% @doc Create an endpoint
 add_endpoint(Name, {LocalAddr, LocalPort, _} = Local,
-		{RemoteAddr, RemotePort, _} = Remote, SCTPRole, M3UARole,
-		Callback, Node) when is_tuple(LocalAddr), is_integer(LocalPort),
-		is_tuple(RemoteAddr), is_integer(RemotePort),
+		Remote, SCTPRole, M3UARole, Callback, Node) when
+		is_tuple(LocalAddr), is_integer(LocalPort),
+		((is_tuple(Remote)) orelse (Remote == undefined)),
 		((is_tuple(Callback)) orelse (is_atom(Callback))),
 		((SCTPRole == client) orelse (SCTPRole == server)),
 		((M3UARole == sgp) orelse (M3UARole == asp))->
@@ -402,6 +402,8 @@ start_as(AsName) ->
 %% @hidden
 start_as1(#gtt_as{max_asp = Max} = As, [EPRef | T]) ->
 	case mnesia:read(gtt_endpoint, EPRef, read) of
+		[#gtt_endpoint{remote = undefined}] ->
+			start_as1(As, T);
 		[#gtt_endpoint{ep = EP, node = Node,
 				remote = {RAddr, RPort, Options},
 				m3ua_role = M3UARole, sctp_role = SCTPRole}] ->

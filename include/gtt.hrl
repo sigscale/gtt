@@ -24,7 +24,7 @@
 		m3ua_role :: sgp | asp,
 		callback :: atom() | #m3ua_fsm_cb{},
 		local :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
-		remote :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
+		remote :: undefined | {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		node :: node(),
 		ep :: pid() | undefined}).
 
