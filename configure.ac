@@ -87,5 +87,5 @@ AC_ERLANG_CHECK_LIB([sccp], [], [AC_MSG_ERROR([sccp was not found!])])
 ## 
 
 AC_OUTPUT([Makefile include/Makefile ebin/Makefile doc/Makefile
-		test/Makefile gtt.rel])
+		test/Makefile gtt.rel sys.config])
 

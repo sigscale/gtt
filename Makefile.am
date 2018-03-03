@@ -7,7 +7,7 @@ SUBDIRS = include ebin doc test
 .PHONY: release
 release: $(PACKAGE_VERSION).tar.gz
 
-$(PACKAGE_VERSION).tar.gz: $(PACKAGE_NAME).rel
+$(PACKAGE_VERSION).tar.gz: $(PACKAGE_NAME).rel sys.config
 	cp $(PACKAGE_NAME).rel $(PACKAGE_VERSION).rel
 	$(ERL) -pa $(top_builddir)/ebin -noinput \
 		-eval "systools:make_script(\"$(PACKAGE_VERSION)\")" \
