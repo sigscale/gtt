@@ -20,9 +20,9 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_endpoint/7, find_endpoint/1, start_endpoint/1]).
--export([add_sg/7, find_sg/1, start_sg/1]).
--export([add_as/8, find_as/1, start_as/1]).
+-export([add_endpoint/6, add_endpoint/7, find_endpoint/1, start_endpoint/1]).
+-export([add_sg/6, add_sg/7, find_sg/1, start_sg/1]).
+-export([add_as/7, add_as/8, find_as/1, start_as/1]).
 -export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
 
 -include("gtt.hrl").
@@ -30,6 +30,25 @@
 %%----------------------------------------------------------------------
 %%  The gtt public API
 %%----------------------------------------------------------------------
+
+-spec add_endpoint(Name, Local, Remote,
+		SCTPRole, M3UARole, Callback) -> Result
+	when
+		Name :: term(),
+		Local :: {Address, Port, Options},
+		Remote :: undefined | {Address, Port, Options},
+		SCTPRole :: client | server,
+		M3UARole :: sgp | asp,
+		Callback :: atom() | #m3ua_fsm_cb{},
+		Port :: inet:port_number(),
+		Address :: inet:ip_address(),
+		Options :: list(),
+		Result :: {ok, EP} | {error, Reason},
+		EP :: #gtt_endpoint{},
+		Reason :: term().
+%% @equiv add_endpoint(Name, Local, Remote, SCTPRole, M3UARole, Callback, node())
+add_endpoint(Name, Local, Remote, SCTPRole, M3UARole, Callback) ->
+	add_endpoint(Name, Local, Remote, SCTPRole, M3UARole, Callback, node()).
 
 -spec add_endpoint(Name, Local, Remote,
 		SCTPRole, M3UARole, Callback, Node) -> Result
@@ -47,7 +66,7 @@
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_endpoint{},
 		Reason :: term().
-%% @doc Create an endpoint
+%% @doc Create an endpoint.
 add_endpoint(Name, {LocalAddr, LocalPort, _} = Local,
 		Remote, SCTPRole, M3UARole, Callback, Node) when
 		is_tuple(LocalAddr), is_integer(LocalPort),
@@ -86,6 +105,29 @@ find_endpoint(EndPointName) ->
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
+
+-spec add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, EPs) -> Result
+	when
+		Name :: term(),
+		NA :: pos_integer(),
+		Keys :: [Key],
+		Mode :: override | loadshare | broadcast,
+		MinAsp :: pos_integer(),
+		MaxAsp :: pos_integer(),
+		EPs :: [EPRef],
+		Result :: {ok, AS} | {error, Reason},
+		Key :: {DPC, SIs, OPCs},
+		DPC :: pos_integer(),
+		SIs :: [SI],
+		OPCs :: [OPC],
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		EPRef :: term(),
+		AS :: #gtt_as{},
+		Reason :: term().
+%% @doc Create new Application Server entry.
+add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, EPs) ->
+	add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, node(), EPs).
 
 -spec add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs) -> Result
 	when
@@ -143,6 +185,27 @@ find_as(AsName) ->
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
+
+-spec add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp) -> Result
+	when
+		Name :: term(),
+		NA :: pos_integer(),
+		Keys :: [Key],
+		Mode :: override | loadshare | broadcast,
+		MinAsp :: pos_integer(),
+		MaxAsp :: pos_integer(),
+		Result :: {ok, AS} | {error, Reason},
+		Key :: {DPC, SIs, OPCs},
+		DPC :: pos_integer(),
+		SIs :: [SI],
+		OPCs :: [OPC],
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		AS :: #gtt_sg{},
+		Reason :: term().
+%% @doc Create new Service Gateway entry.
+add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp) ->
+	add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp, node()).
 
 -spec add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node) -> Result
 	when
