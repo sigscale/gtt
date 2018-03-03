@@ -9,7 +9,7 @@ release: $(PACKAGE_VERSION).tar.gz
 
 $(PACKAGE_VERSION).tar.gz: $(PACKAGE_NAME).rel sys.config
 	cp $(PACKAGE_NAME).rel $(PACKAGE_VERSION).rel
-	$(ERL) -pa $(top_builddir)/ebin -noinput \
+	$(ERL) -noinput \
 		-eval "systools:make_script(\"$(PACKAGE_VERSION)\")" \
 		-eval "systools:make_tar(\"$(PACKAGE_VERSION)\", [{dirs, [include]}])" \
 		-s init stop
