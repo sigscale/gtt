@@ -20,8 +20,8 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_endpoint/6, add_endpoint/7, find_endpoint/1,
-		start_endpoint/1, stat_endpoint/1, stat_endpoint/2]).
+-export([add_ep/6, add_ep/7, find_ep/1,
+		start_ep/1, stat_ep/1, stat_ep/2]).
 -export([add_sg/6, add_sg/7, find_sg/1, start_sg/1]).
 -export([add_as/7, add_as/8, get_as/0, find_as/1, start_as/1]).
 -export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
@@ -32,7 +32,7 @@
 %%  The gtt public API
 %%----------------------------------------------------------------------
 
--spec add_endpoint(Name, Local, Remote,
+-spec add_ep(Name, Local, Remote,
 		SCTPRole, M3UARole, Callback) -> Result
 	when
 		Name :: term(),
@@ -45,13 +45,13 @@
 		Address :: inet:ip_address(),
 		Options :: list(),
 		Result :: {ok, EP} | {error, Reason},
-		EP :: #gtt_endpoint{},
+		EP :: #gtt_ep{},
 		Reason :: term().
-%% @equiv add_endpoint(Name, Local, Remote, SCTPRole, M3UARole, Callback, node())
-add_endpoint(Name, Local, Remote, SCTPRole, M3UARole, Callback) ->
-	add_endpoint(Name, Local, Remote, SCTPRole, M3UARole, Callback, node()).
+%% @equiv add_ep(Name, Local, Remote, SCTPRole, M3UARole, Callback, node())
+add_ep(Name, Local, Remote, SCTPRole, M3UARole, Callback) ->
+	add_ep(Name, Local, Remote, SCTPRole, M3UARole, Callback, node()).
 
--spec add_endpoint(Name, Local, Remote,
+-spec add_ep(Name, Local, Remote,
 		SCTPRole, M3UARole, Callback, Node) -> Result
 	when
 		Name :: term(),
@@ -65,10 +65,10 @@ add_endpoint(Name, Local, Remote, SCTPRole, M3UARole, Callback) ->
 		Address :: inet:ip_address(),
 		Options :: list(),
 		Result :: {ok, EP} | {error, Reason},
-		EP :: #gtt_endpoint{},
+		EP :: #gtt_ep{},
 		Reason :: term().
-%% @doc Create an endpoint.
-add_endpoint(Name, {LocalAddr, LocalPort, _} = Local,
+%% @doc Create an SCTP endpoint specification.
+add_ep(Name, {LocalAddr, LocalPort, _} = Local,
 		Remote, SCTPRole, M3UARole, Callback, Node) when
 		is_tuple(LocalAddr), is_integer(LocalPort),
 		((is_tuple(Remote)) orelse (Remote == undefined)),
@@ -76,10 +76,10 @@ add_endpoint(Name, {LocalAddr, LocalPort, _} = Local,
 		((SCTPRole == client) orelse (SCTPRole == server)),
 		((M3UARole == sgp) orelse (M3UARole == asp))->
 	F = fun() ->
-			GttEP = #gtt_endpoint{name = Name, local = Local,
+			GttEP = #gtt_ep{name = Name, local = Local,
 				remote = Remote, sctp_role = SCTPRole, m3ua_role = M3UARole,
 				callback = Callback, node = Node},
-			mnesia:write(gtt_endpoint, GttEP, write),
+			mnesia:write(gtt_ep, GttEP, write),
 			GttEP
 	end,
 	case mnesia:transaction(F) of
@@ -89,20 +89,20 @@ add_endpoint(Name, {LocalAddr, LocalPort, _} = Local,
 			{error, Reason}
 	end.
 
--spec find_endpoint(EndPointName) -> Result
+-spec find_ep(EpName) -> Result
 	when
-		EndPointName :: term(),
-		Result :: {ok, EndPoint} | {error, Reason},
-		EndPoint :: #gtt_endpoint{},
+		EpName :: term(),
+		Result :: {ok, EP} | {error, Reason},
+		EP :: #gtt_ep{},
 		Reason :: term().
-%% @doc Search for an endpoint entry in gtt_endpoint table
-find_endpoint(EndPointName) ->
-	F = fun() -> mnesia:read(gtt_endpoint, EndPointName, read) end,
+%% @doc Search for an SCTP endpoint specification by name.
+find_ep(EpName) ->
+	F = fun() -> mnesia:read(gtt_ep, EpName, read) end,
 	case mnesia:transaction(F) of
 		{atomic, []} ->
 			{error, not_found};
-		{atomic, [#gtt_endpoint{} = EndPoint]} ->
-			{ok, EndPoint};
+		{atomic, [#gtt_ep{} = EP]} ->
+			{ok, EP};
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
@@ -126,7 +126,7 @@ find_endpoint(EndPointName) ->
 		EPRef :: term(),
 		AS :: #gtt_as{},
 		Reason :: term().
-%% @doc Create new Application Server entry.
+%% @doc Create new Application Server specification.
 add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, EPs) ->
 	add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, node(), EPs).
 
@@ -150,7 +150,7 @@ add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, EPs) ->
 		EPRef :: term(),
 		AS :: #gtt_as{},
 		Reason :: term().
-%% @doc Create new Application Server entry
+%% @doc Create new Application Server specification.
 add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
 		when is_integer(NA), is_list(Keys), is_integer(MinAsp),
 		is_integer(MaxAsp), ((Mode == override) orelse (Mode == loadshare)
@@ -173,7 +173,7 @@ add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
 	when
 		AsNames :: [AsName],
 		AsName :: term().
-%% @doc Get names of all Application Servers.
+%% @doc Get names of all Application Server specifications.
 get_as() ->
 	F = fun() -> mnesia:all_keys(gtt_as) end,
 	case mnesia:transaction(F) of
@@ -189,7 +189,7 @@ get_as() ->
 		Result :: {ok, AS} | {error, Reason},
 		AS :: #gtt_as{},
 		Reason :: term().
-%% @doc Search for an endpoint entry in gtt_as table
+%% @doc Search for an SCTP endpoint specification.
 find_as(AsName) ->
 	F = fun() -> mnesia:read(gtt_as, AsName, read) end,
 	case mnesia:transaction(F) of
@@ -218,7 +218,7 @@ find_as(AsName) ->
 		OPC :: pos_integer(),
 		AS :: #gtt_sg{},
 		Reason :: term().
-%% @doc Create new Service Gateway entry.
+%% @doc Create new Signaling Gateway specification.
 add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp) ->
 	add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp, node()).
 
@@ -240,7 +240,7 @@ add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp) ->
 		OPC :: pos_integer(),
 		AS :: #gtt_sg{},
 		Reason :: term().
-%% @doc Create new Service Gateway entry
+%% @doc Create new Signaling Gateway specification.
 add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node)
 		when is_integer(NA), is_list(Keys), is_integer(MinAsp),
 		is_integer(MaxAsp), ((Mode == override) orelse (Mode == loadshare)
@@ -265,7 +265,7 @@ add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node)
 		Result :: {ok, SG} | {error, Reason},
 		SG :: #gtt_sg{},
 		Reason :: term().
-%% @doc Search for an endpoint entry in gtt_sg table
+%% @doc Search for an SCTP endpoint specification.
 find_sg(SgName) ->
 	F = fun() -> mnesia:read(gtt_sg, SgName, read) end,
 	case mnesia:transaction(F) of
@@ -282,7 +282,7 @@ find_sg(SgName) ->
 		Key :: routing_key(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
-%% @doc Add point codes to Point Code table.
+%% @doc Add MTP3 point codes to Point Code route table.
 add_key({NA, Keys, _} = Key) when is_list(Keys),
 		(is_integer(NA) or (NA == undefined)) ->
 	Fadd = fun(F, [{DPC, SI, OPC} | T]) when is_integer(DPC),
@@ -371,23 +371,23 @@ find_pc4(DPC, GTT) when is_integer(DPC) ->
 	MatchExpression = [MatchFunction],
 	mnesia:dirty_select(gtt_pc, MatchExpression).
 
--spec start_endpoint(EndPointName) -> Result
+-spec start_ep(EpName) -> Result
 	when
-		EndPointName :: term(),
+		EpName :: term(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
-%% @doc Start new m3ua endpoint
-start_endpoint(EndPointName) ->
+%% @doc Start SCTP endpoint.
+start_ep(EpName) ->
 	F = fun() ->
-		case mnesia:read(gtt_endpoint, EndPointName, write) of
-			[#gtt_endpoint{sctp_role = SCTPRole, m3ua_role = M3UARole,
+		case mnesia:read(gtt_ep, EpName, write) of
+			[#gtt_ep{sctp_role = SCTPRole, m3ua_role = M3UARole,
 					callback = Callback, local = {LocalAddr, LocalPort, Options},
 					node = Node} = EP] ->
 				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role, M3UARole},
 					{ip, LocalAddr}] ++ Options,
-				case catch start_endpoint1(Node, LocalPort, NewOptions, Callback) of
-					{ok, EndPoint} ->
-						NewEP = EP#gtt_endpoint{ep = EndPoint},
+				case catch start_ep1(Node, LocalPort, NewOptions, Callback) of
+					{ok, EP} ->
+						NewEP = EP#gtt_ep{ep = EP},
 						ok = mnesia:write(NewEP);
 					{error, Reason} ->
 						throw(Reason);
@@ -407,9 +407,9 @@ start_endpoint(EndPointName) ->
 			{error, Reason}
 	end.
 %% @hidden
-start_endpoint1(Node, Port, Options, Callback) when Node == node() ->
+start_ep1(Node, Port, Options, Callback) when Node == node() ->
 	m3ua:open(Port, Options, Callback);
-start_endpoint1(Node, Port, Options, Callback) ->
+start_ep1(Node, Port, Options, Callback) ->
 	case rpc:call(Node, m3ua, open, [Port, Options, Callback]) of
 		{ok, EP} ->
 			{ok, EP};
@@ -479,10 +479,10 @@ start_as(AsName) ->
 	end.
 %% @hidden
 start_as1(#gtt_as{max_asp = Max} = As, [EPRef | T]) ->
-	case mnesia:read(gtt_endpoint, EPRef, read) of
-		[#gtt_endpoint{remote = undefined}] ->
+	case mnesia:read(gtt_ep, EPRef, read) of
+		[#gtt_ep{remote = undefined}] ->
 			start_as1(As, T);
-		[#gtt_endpoint{ep = EP, node = Node,
+		[#gtt_ep{ep = EP, node = Node,
 				remote = {RAddr, RPort, Options},
 				m3ua_role = M3UARole, sctp_role = SCTPRole}] ->
 			NewAs = start_as2(Node, EP, RAddr, RPort,
@@ -494,7 +494,7 @@ start_as1(#gtt_as{max_asp = Max} = As, [EPRef | T]) ->
 					{module, ?MODULE}]),
 			start_as1(As, T)
 	end;
-start_as1(As, []) ->
+start_as1(_, []) ->
 	ok.
 %% @hidden
 start_as2(Node1, _, _, _, _, _, _, _, #gtt_as{node = Node2} = As)
@@ -576,21 +576,21 @@ start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) ->
 			{error, Reason}
 	end.
 
--spec stat_endpoint(EPRef) -> Result
+-spec stat_ep(EPRef) -> Result
 	when
 		EPRef :: term(),
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{inet:stat_option(), Count}],
 		Count :: non_neg_integer().
-%% @doc Get socket statistics for an endpoint.
-%% @see //m3ua/m3ua:getstat_endpoint/1
-stat_endpoint(EPRef) ->
-	case find_endpoint(EPRef) of
-		{ok, #gtt_endpoint{node = Node, ep = EP}}
+%% @doc Get socket statistics for an SCTP endpoint.
+%% @see //m3ua/m3ua:getstat_ep/1
+stat_ep(EPRef) ->
+	case find_ep(EPRef) of
+		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
-			m3ua:getstat_endpoint(EP);
-		{ok, #gtt_endpoint{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat_endpoint, [EP]) of
+			m3ua:getstat_ep(EP);
+		{ok, #gtt_ep{node = Node, ep = EP}} ->
+			case rpc:call(Node, m3ua, getstat_ep, [EP]) of
 				{ok, OptionValues} ->
 					{ok, OptionValues};
 				{error, Reason} ->
@@ -602,22 +602,22 @@ stat_endpoint(EPRef) ->
 			{error, Reason}
 	end.
 
--spec stat_endpoint(EPRef, Options) -> Result
+-spec stat_ep(EPRef, Options) -> Result
 	when
 		EPRef :: term(),
 		Options :: [inet:stat_option()],
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{inet:stat_option(), Count}],
 		Count :: non_neg_integer().
-%% @doc Get socket statistics for an endpoint.
-%% @see //m3ua/m3ua:getstat_endpoint/2
-stat_endpoint(EPRef, Options) when is_list(Options) ->
-	case find_endpoint(EPRef) of
-		{ok, #gtt_endpoint{node = Node, ep = EP}}
+%% @doc Get socket statistics for an SCTP endpoint.
+%% @see //m3ua/m3ua:getstat_ep/2
+stat_ep(EPRef, Options) when is_list(Options) ->
+	case find_ep(EPRef) of
+		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
-			m3ua:getstat_endpoint(EP, Options);
-		{ok, #gtt_endpoint{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat_endpoint, [EP, Options]) of
+			m3ua:getstat_ep(EP, Options);
+		{ok, #gtt_ep{node = Node, ep = EP}} ->
+			case rpc:call(Node, m3ua, getstat_ep, [EP, Options]) of
 				{ok, OptionValues} ->
 					{ok, OptionValues};
 				{error, Reason} ->

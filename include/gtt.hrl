@@ -18,7 +18,7 @@
 
 -include_lib("m3ua/include/m3ua.hrl").
 
--record(gtt_endpoint,
+-record(gtt_ep,
 		{name :: term(),
 		sctp_role :: client | server,
 		m3ua_role :: sgp | asp,
