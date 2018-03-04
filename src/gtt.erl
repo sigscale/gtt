@@ -23,7 +23,7 @@
 -export([add_endpoint/6, add_endpoint/7, find_endpoint/1,
 		start_endpoint/1, stat_endpoint/1, stat_endpoint/2]).
 -export([add_sg/6, add_sg/7, find_sg/1, start_sg/1]).
--export([add_as/7, add_as/8, find_as/1, start_as/1]).
+-export([add_as/7, add_as/8, get_as/0, find_as/1, start_as/1]).
 -export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
 
 -include("gtt.hrl").
@@ -167,6 +167,20 @@ add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
 			{ok, AS};
 		{aborted, Reason} ->
 			{error, Reason}
+	end.
+
+-spec get_as() -> AsNames
+	when
+		AsNames :: [AsName],
+		AsName :: term().
+%% @doc Get names of all Application Servers.
+get_as() ->
+	F = fun() -> mnesia:all_keys(gtt_as) end,
+	case mnesia:transaction(F) of
+		{atomic, AsNames} ->
+			AsNames;
+		{aborted, Reason} ->
+			exit(Reason)
 	end.
 
 -spec find_as(AsName) -> Result
