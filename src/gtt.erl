@@ -515,17 +515,20 @@ start_as1(AS, 0, _) ->
 start_as1(AS, _, []) ->
 	AS;
 start_as1(AS, N, [H | T]) ->
-	case mnesia:read(gtt_ep, H, read) of
-		[#gtt_ep{sctp_role = server} = _EP] ->
+	F = fun() -> mnesia:read(gtt_ep, H, read) end,
+	case mnesia:transaction(F) of
+		{atomic, [#gtt_ep{sctp_role = server} = _EP]} ->
 			% @todo handle AS as SCTP server
 			start_as1(AS, N, T);
-		[#gtt_ep{sctp_role = client} = EP] ->
+		{atomic, [#gtt_ep{sctp_role = client} = EP]} ->
 			start_as2(EP, AS, N, T);
-		[] ->
+		{atomic, []} ->
 			error_logger:error_report(["Endpoint not found",
 					{ep, H}, {reason, epunavilable},
 					{module, ?MODULE}]),
-			start_as1(AS, N, T)
+			start_as1(AS, N, T);
+		{aborted, Reason} ->
+			{error, Reason}
 	end.
 %% @hidden
 start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
