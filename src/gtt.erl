@@ -569,7 +569,7 @@ start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) ->
 		OptionValues :: [{inet:stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an endpoint.
-%% @see {@link //m3ua/m3ua:getstat_endpoint/1}
+%% @see //m3ua/m3ua:getstat_endpoint/1
 stat_endpoint(EPRef) ->
 	case find_endpoint(EPRef) of
 		{ok, #gtt_endpoint{node = Node, ep = EP}}
@@ -596,7 +596,7 @@ stat_endpoint(EPRef) ->
 		OptionValues :: [{inet:stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an endpoint.
-%% @see {@link //m3ua/m3ua:getstat_endpoint/2}
+%% @see //m3ua/m3ua:getstat_endpoint/2
 stat_endpoint(EPRef, Options) when is_list(Options) ->
 	case find_endpoint(EPRef) of
 		{ok, #gtt_endpoint{node = Node, ep = EP}}
