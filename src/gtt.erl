@@ -406,37 +406,37 @@ find_pc4(DPC, GTT) when is_integer(DPC) ->
 		Reason :: term().
 %% @doc Start SCTP endpoint.
 start_ep(EpName) ->
-	F = fun() ->
-		case mnesia:read(gtt_ep, EpName, write) of
-			[#gtt_ep{sctp_role = SCTPRole, m3ua_role = M3UARole,
-					callback = Callback, local = {LocalAddr, LocalPort, Options},
-					node = Node} = EP] ->
-				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role, M3UARole},
-					{ip, LocalAddr}] ++ Options,
-				case catch start_ep1(Node, LocalPort, NewOptions, Callback) of
-					{ok, Pid} ->
-						ok = mnesia:write(EP#gtt_ep{ep = Pid});
-					{error, Reason} ->
-						throw(Reason);
-					{'EXIT', Reason} ->
-						throw(Reason)
-				end;
-			[] ->
-				throw(not_found)
-		end
-	end,
+	F = fun() -> mnesia:read(gtt_ep, EpName, read) end,
 	case mnesia:transaction(F) of
-		{atomic, ok} ->
-			ok;
-		{aborted, {throw, Reason}} ->
-			{error, Reason};
+		{atomic, [EP]} ->
+			start_ep1(EP);
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
-start_ep1(Node, Port, Options, Callback) when Node == node() ->
+start_ep1(#gtt_ep{sctp_role = SCTPRole, m3ua_role = M3UARole,
+		callback = Callback, local = {LocalAddr, LocalPort, Options},
+		node = Node} = EP) ->
+	NewOptions = [{sctp_role, SCTPRole}, {m3ua_role, M3UARole},
+			{ip, LocalAddr}] ++ Options,
+	case catch start_ep2(Node, LocalPort, NewOptions, Callback) of
+		{ok, Pid} ->
+			F = fun() -> mnesia:write(EP#gtt_ep{ep = Pid}) end,
+			case mnesia:transaction(F) of
+				{atomic, ok} ->
+					ok;
+				{aborted, Reason} ->
+					{error, Reason}
+			end;
+		{error, Reason} ->
+			{error, Reason};
+		{'EXIT', Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start_ep2(Node, Port, Options, Callback) when Node == node() ->
 	m3ua:open(Port, Options, Callback);
-start_ep1(Node, Port, Options, Callback) ->
+start_ep2(Node, Port, Options, Callback) ->
 	case rpc:call(Node, m3ua, open, [Port, Options, Callback]) of
 		{ok, EP} ->
 			{ok, EP};
@@ -445,7 +445,6 @@ start_ep1(Node, Port, Options, Callback) ->
 		{badrpc, Reason} ->
 			{error, Reason}
 	end.
-
 
 -spec start_sg(SgName) -> Result
 	when
