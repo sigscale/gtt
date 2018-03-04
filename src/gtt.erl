@@ -22,7 +22,7 @@
 
 -export([add_ep/6, add_ep/7, get_ep/0, find_ep/1,
 		start_ep/1, stat_ep/1, stat_ep/2]).
--export([add_sg/6, add_sg/7, find_sg/1, start_sg/1]).
+-export([add_sg/6, add_sg/7, get_sg/0, find_sg/1, start_sg/1]).
 -export([add_as/7, add_as/8, get_as/0, find_as/1, start_as/1]).
 -export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
 
@@ -271,6 +271,20 @@ add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node)
 			{ok, SG};
 		{aborted, Reason} ->
 			{error, Reason}
+	end.
+
+-spec get_sg() -> SgNames
+	when
+		SgNames :: [SgName],
+		SgName :: term().
+%% @doc Get names of all Signaling Gateway specifications.
+get_sg() ->
+	F = fun() -> mnesia:all_keys(gtt_sg) end,
+	case mnesia:transaction(F) of
+		{atomic, SgNames} ->
+			SgNames;
+		{aborted, Reason} ->
+			exit(Reason)
 	end.
 
 -spec find_sg(SgName) -> Result
