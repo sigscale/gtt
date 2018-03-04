@@ -71,7 +71,7 @@ start1() ->
 	end.
 %% @hidden
 start2([EP | T]) ->
-	case gtt:start_endpoint(EP) of
+	case gtt:start_ep(EP) of
 		ok ->
 			start2(T);
 		{error, Reason} ->
