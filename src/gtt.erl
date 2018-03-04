@@ -542,7 +542,7 @@ start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
 					start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
 			end;
 		{error, Reason} ->
-			error_logger:error_report(["Faild to establish sctp connection",
+			error_logger:error_report(["Failed to establish SCTP connection",
 					{ep, EP}, {address, Address}, {port, Port},
 					{module, ?MODULE}, {reason, Reason}]),
 			As
@@ -561,7 +561,7 @@ start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
 					start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
 			end;
 		{_, Reason} ->
-			error_logger:error_report(["Faild to establish sctp connection",
+			error_logger:error_report(["Failed to establish SCTP connection",
 					{ep, EP}, {address, Address}, {port, Port},
 					{module, ?MODULE}, {reason, Reason}]),
 			As
