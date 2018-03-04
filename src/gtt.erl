@@ -489,111 +489,116 @@ start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) ->
 		Result :: ok.
 %% @doc Register local Application Server.
 start_as(AsName) ->
-	F = fun() ->
-		case mnesia:read(gtt_as, AsName, write) of
-			[#gtt_as{eps = EpRefs} = As] ->
-				start_as1(As, EpRefs);
-			[] ->
-				ok
-		end
-	end,
-	case mnesia:transaction(F) of
-		{atomic, ok} ->
+	F1 = fun() -> mnesia:read(gtt_as, AsName, read) end,
+	case mnesia:transaction(F1) of
+		{atomic, [#gtt_as{max_asp = Max, eps = EpRefs} = AS]} ->
+			case start_as1(AS, Max, EpRefs) of
+				AS ->
+					ok;
+				#gtt_as{} = NewAS ->
+					F2 = fun() -> mnesia:write(NewAS) end,
+					case mnesia:transaction(F2) of
+						{atomic, ok} ->
+							ok;
+						{aborted, Reason} ->
+							{error, Reason}
+					end
+			end;
+		{atomic, []} ->
 			ok;
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
-start_as1(#gtt_as{max_asp = Max} = As, [EPRef | T]) ->
-	case mnesia:read(gtt_ep, EPRef, read) of
-		[#gtt_ep{remote = undefined}] ->
-			start_as1(As, T);
-		[#gtt_ep{ep = EP, node = Node,
-				remote = {RAddr, RPort, Options},
-				m3ua_role = M3UARole, sctp_role = SCTPRole}] ->
-			NewAs = start_as2(Node, EP, RAddr, RPort,
-					Options, SCTPRole, M3UARole, Max, As),
-			start_as1(NewAs, T);
+start_as1(AS, 0, _) ->
+	AS;
+start_as1(AS, _, []) ->
+	AS;
+start_as1(AS, N, [H | T]) ->
+	case mnesia:read(gtt_ep, H, read) of
+		[#gtt_ep{sctp_role = server} = _EP] ->
+			% @todo handle AS as SCTP server
+			start_as1(AS, N, T);
+		[#gtt_ep{sctp_role = client} = EP] ->
+			start_as2(EP, AS, N, T);
 		[] ->
 			error_logger:error_report(["Endpoint not found",
-					{ep, EPRef}, {reason, epunavilable},
+					{ep, H}, {reason, epunavilable},
 					{module, ?MODULE}]),
-			start_as1(As, T)
-	end;
-start_as1(_, []) ->
-	ok.
+			start_as1(AS, N, T)
+	end.
 %% @hidden
-start_as2(Node1, _, _, _, _, _, _, _, #gtt_as{node = Node2} = As)
-		when Node1 /= Node2 ->
-	As;
-start_as2(_, _, _, _, _, _, _, 0 = _Max, As) ->
-	As;
-start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
-		Max, #gtt_as{name = AsName, keys = Keys, na = Na, mode = Mode,
-		asp = Asps} = As) when Node == node() ->
-	case m3ua:sctp_establish(EP, Address, Port, Options) of
+start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
+		remote = {Address, Port, Options}} = EP,
+		#gtt_as{asp = ASPs} = AS, N, T) when Node == node() ->
+	case m3ua:sctp_establish(Pid, Address, Port, Options) of
 		{ok, Assoc} ->
-			case start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) of
+			case start_as3(EP, Assoc, AS) of
 				ok ->
-					NewAsps = [{EP, Assoc} | Asps],
-					start_as2(Node, EP, Address, Port, Options,
-						SCTPRole, M3UARole, Max - 1, As#gtt_as{asp = NewAsps});
+					NewAS = AS#gtt_as{asp = [{Pid, Assoc} | ASPs]},
+					start_as1(NewAS, N - 1, T);
 				{error, _Reason} ->
-					start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
+					%% @todo close connection!
+					start_as1(AS, N, T)
 			end;
 		{error, Reason} ->
 			error_logger:error_report(["Failed to establish SCTP connection",
-					{ep, EP}, {address, Address}, {port, Port},
+					{ep, EpName}, {address, Address}, {port, Port},
 					{module, ?MODULE}, {reason, Reason}]),
-			As
+			start_as1(AS, N, T)
 	end;
-start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
-		Max, #gtt_as{name = AsName, keys = Keys, na = Na, mode = Mode,
-		asp = Asps} = As) ->
-	case rpc:call(Node, m3ua, sctp_establish, [EP, Address, Port, Options]) of
+start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
+		remote = {Address, Port, Options}} = EP,
+		#gtt_as{asp = ASPs} = AS, N, T) ->
+	case rpc:call(Node, m3ua, sctp_establish, [Pid, Address, Port, Options]) of
 		{ok, Assoc} ->
-			case start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) of
+			case start_as3(EP, Assoc, AS) of
 				ok ->
-					NewAsps = [{EP, Assoc} | Asps],
-					start_as2(Node, EP, Address, Port, Options,
-							SCTPRole, M3UARole, Max - 1, As#gtt_as{asp = NewAsps});
+					NewAS = AS#gtt_as{asp = [{Pid, Assoc} | ASPs]},
+					start_as1(NewAS, N - 1, T);
 				{error, _Reason} ->
-					start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole, Max, As)
+					%% @todo close connection!
+					start_as1(AS, N, T)
 			end;
-		{_, Reason} ->
+		{error, Reason} ->
 			error_logger:error_report(["Failed to establish SCTP connection",
-					{ep, EP}, {address, Address}, {port, Port},
+					{ep, EpName}, {node, Node},
+					{address, Address}, {port, Port},
 					{module, ?MODULE}, {reason, Reason}]),
-			As
+			start_as1(AS, N, T)
 	end.
 %% @hidden
-start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) when Node == node() ->
-	case m3ua:asp_up(EP, Assoc) of
+start_as3(#gtt_ep{ep = Pid, node = Node} = EP, Assoc, AS)
+		when Node == node() ->
+	case m3ua:asp_up(Pid, Assoc) of
 		ok ->
-			start_as4(Node, EP, Assoc, AsName, Na, Keys, Mode);
+			start_as4(EP, Assoc, AS);
 		{error, Reason} ->
 			{error, Reason}
 	end;
-start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) ->
-	case rpc:call(Node, m3ua, asp_up, [EP, Assoc]) of
+start_as3(#gtt_ep{ep = Pid, node = Node} = EP, Assoc, AS) ->
+	case rpc:call(Node, m3ua, asp_up, [Pid, Assoc]) of
 		ok ->
-			start_as4(Node, EP, Assoc, AsName, Na, Keys, Mode);
+			start_as4(EP, Assoc, AS);
 		{error, Reason} ->
 			{error, Reason};
 		{badrpc, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
-start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, AsName) of
+start_as4(#gtt_ep{ep = Pid, node = Node}, Assoc,
+		#gtt_as{na = NA, keys = Keys, mode = Mode, name = AsName})
+		when Node == node() ->
+	case m3ua:register(Pid, Assoc, NA, Keys, Mode, AsName) of
 		{ok, _} ->
 			ok;
 		{error, Reason} ->
 			{error, Reason}
 	end;
-start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) ->
+start_as4(#gtt_ep{ep = Pid, node = Node}, Assoc,
+		#gtt_as{na = NA, keys = Keys, mode = Mode, name = AsName}) ->
 	case rpc:call(Node, m3ua, register,
-			[EP, Assoc, NA, Keys, Mode, AsName]) of
+			[Pid, Assoc, NA, Keys, Mode, AsName]) of
 		{ok, _} ->
 			ok;
 		{error, Reason} ->
