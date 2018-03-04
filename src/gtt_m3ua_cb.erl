@@ -47,7 +47,6 @@
 %% @doc Initialize ASP/SGP callback handler
 %%%  Called when ASP is started.
 init(_Fsm, _EP, _Assoc) ->
-erlang:display({?MODULE, ?LINE, init, _Fsm, _EP, _Assoc}),
 	{ok, []}.
 
 -spec transfer(Fsm, EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State) -> Result
@@ -69,7 +68,6 @@ erlang:display({?MODULE, ?LINE, init, _Fsm, _EP, _Assoc}),
 %% @doc MTP-TRANSFER indication
 %%%  Called when data has arrived for the MTP user.
 transfer(_Fsm, _EP, _Assoc, _Stream, _RK, _OPC, _DPC, _SLS, _SIO, _Data, State) ->
-erlang:display({?MODULE, ?LINE, transfer, _Fsm, _EP, _Assoc, _Stream, _RK, _OPC, _DPC, _SLS, _SIO, _Data, State}),
 	{ok, State}.
 
 -spec pause(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
@@ -88,7 +86,6 @@ erlang:display({?MODULE, ?LINE, transfer, _Fsm, _EP, _Assoc, _Stream, _RK, _OPC,
 %% @doc MTP-PAUSE indication
 %%%  Called when an SS7 destination is unreachable.
 pause(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
-erlang:display({?MODULE, ?LINE, pause, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State}), 
 	{ok, State}.
 
 -spec resume(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
@@ -108,7 +105,6 @@ erlang:display({?MODULE, ?LINE, pause, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, S
 %%%  Called when a previously unreachable SS7 destination
 %%%  becomes reachable.
 resume(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
-erlang:display({?MODULE, ?LINE, resume, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State}),
 	{ok, State}.
 
 -spec status(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
@@ -127,7 +123,6 @@ erlang:display({?MODULE, ?LINE, resume, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, 
 %% @doc Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.
 status(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
-erlang:display({?MODULE, ?LINE, status, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State}),
 	{ok, State}.
 
 -spec register(Fsm, EP, Assoc, NA, Keys, TMT, State) -> Result
@@ -146,7 +141,6 @@ erlang:display({?MODULE, ?LINE, status, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, 
 %%		registration status of successful from its peer or
 %%		successfully processed an incoming Registration Request message.
 register(_Fsm, _EP, _Assoc, NA, Keys, TMT, State) ->
-erlang:display({?MODULE, ?LINE, register, _Fsm, _EP, _Assoc, NA, Keys, TMT, State}),
 	case gtt:add_key({NA, Keys, TMT}) of
 		ok ->
 			{ok, State};
@@ -165,7 +159,6 @@ erlang:display({?MODULE, ?LINE, register, _Fsm, _EP, _Assoc, NA, Keys, TMT, Stat
 %% 	message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Up message from its peer.
 asp_up(_Fsm, _EP, _Assoc, State) ->
-erlang:display({?MODULE, ?LINE, asp_up, _Fsm, _EP, _Assoc, State}),
 	{ok, State}.
 
 -spec asp_down(Fsm, EP, Assoc, State) -> Result
@@ -179,7 +172,6 @@ erlang:display({?MODULE, ?LINE, asp_up, _Fsm, _EP, _Assoc, State}),
 %%		message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Down message from its peer.
 asp_down(_Fsm, _EP, _Assoc, State) ->
-erlang:display({?MODULE, ?LINE, asp_down, _Fsm, _EP, _Assoc, State}),
 	{ok, State}.
 
 -spec asp_active(Fsm, EP, Assoc, State) -> Result
@@ -193,7 +185,6 @@ erlang:display({?MODULE, ?LINE, asp_down, _Fsm, _EP, _Assoc, State}),
 %%		Ack message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Active message from its peer.
 asp_active(_Fsm, _EP, _Assoc, State) ->
-erlang:display({?MODULE, ?LINE, asp_active, _Fsm, _EP, _Assoc, State}),
 	{ok, State}.
 
 -spec asp_inactive(Fsm, EP, Assoc, State) -> Result
@@ -207,7 +198,6 @@ erlang:display({?MODULE, ?LINE, asp_active, _Fsm, _EP, _Assoc, State}),
 %%		Ack message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Inactive message from its peer.
 asp_inactive(_Fsm, _EP, _Assoc, State) ->
-erlang:display({?MODULE, ?LINE, asp_inactive, _Fsm, _EP, _Assoc, State}),
 	{ok, State}.
 
 %%----------------------------------------------------------------------
