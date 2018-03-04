@@ -588,7 +588,7 @@ start_as4(#gtt_ep{ep = Pid, node = Node}, Assoc,
 		when Node == node() ->
 	case m3ua:register(Pid, Assoc, NA, Keys, Mode, AsName) of
 		{ok, _} ->
-			ok;
+			start_as5(Pid, Assoc, Node);
 		{error, Reason} ->
 			{error, Reason}
 	end;
@@ -597,6 +597,18 @@ start_as4(#gtt_ep{ep = Pid, node = Node}, Assoc,
 	case rpc:call(Node, m3ua, register,
 			[Pid, Assoc, NA, Keys, Mode, AsName]) of
 		{ok, _} ->
+			start_as5(Pid, Assoc, Node);
+		{error, Reason} ->
+			{error, Reason};
+		{badrpc, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start_as5(Pid, Assoc, Node) when Node == node() ->
+	m3ua:asp_active(Pid, Assoc);
+start_as5(Pid, Assoc, Node) ->
+	case rpc:call(Node, m3ua, asp_active, [Pid, Assoc]) of
+		ok ->
 			ok;
 		{error, Reason} ->
 			{error, Reason};
