@@ -414,9 +414,8 @@ start_ep(EpName) ->
 				NewOptions = [{sctp_role, SCTPRole}, {m3ua_role, M3UARole},
 					{ip, LocalAddr}] ++ Options,
 				case catch start_ep1(Node, LocalPort, NewOptions, Callback) of
-					{ok, EP} ->
-						NewEP = EP#gtt_ep{ep = EP},
-						ok = mnesia:write(NewEP);
+					{ok, Pid} ->
+						ok = mnesia:write(EP#gtt_ep{ep = Pid});
 					{error, Reason} ->
 						throw(Reason);
 					{'EXIT', Reason} ->
