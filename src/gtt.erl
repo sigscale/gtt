@@ -453,35 +453,29 @@ start_ep2(Node, Port, Options, Callback) ->
 		Reason :: term().
 %% @doc Register remote Application Server.
 start_sg(SgName) ->
-	F = fun() ->
-		case mnesia:read(gtt_sg, SgName, read) of
-			[#gtt_sg{na = NA, keys = Keys, mode = Mode,
-					min_asp = Min, max_asp = Max, node = Node}] ->
-				case start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) of
-					{ok, _} ->
-						ok;
-					{badrpc, Reason} ->
-						throw(Reason);
-					{error, Reason} ->
-						throw(Reason)
-				end;
-			[] ->
-				throw(not_found)
-		end
-	end,
+	F = fun() -> mnesia:read(gtt_sg, SgName, read) end,
 	case mnesia:transaction(F) of
-		{atomic, ok} ->
-			ok;
-		{aborted, {throw, Reason}} ->
-			{error, Reason};
-		{aborted, Reason} ->
-			{error, Reason}
+		{atomic, [#gtt_sg{na = NA, keys = Keys, mode = Mode,
+				min_asp = Min, max_asp = Max, node = Node}]}
+				when Node == node() ->
+			case m3ua:as_add(SgName, NA, Keys, Mode, Min, Max) of
+				{ok, _AS} ->
+					ok;
+				{error, Reason} ->
+					{error, Reason}
+			end;
+		{atomic, [#gtt_sg{na = NA, keys = Keys, mode = Mode,
+				min_asp = Min, max_asp = Max, node = Node}]} ->
+			case rpc:call(Node, m3ua, as_add,
+					[SgName, NA, Keys, Mode, Min, Max]) of
+				{ok, _AS} ->
+					ok;
+				{badrpc, Reason} ->
+					{error, Reason};
+				{error, Reason} ->
+					{error, Reason}
+			end
 	end.
-%% @hidden
-start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) when Node == node() ->
-	m3ua:as_add(SgName, NA, Keys, Mode, Min, Max);
-start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) ->
-	rpc:call(Node, m3ua, as_add, [SgName, NA, Keys, Mode, Min, Max]).
 
 -spec start_as(AsName) -> Result
 	when
