@@ -610,14 +610,14 @@ start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) ->
 		OptionValues :: [{inet:stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an SCTP endpoint.
-%% @see //m3ua/m3ua:getstat_ep/1
+%% @see //m3ua/m3ua:getstat_endpoint/1
 stat_ep(EPRef) ->
 	case find_ep(EPRef) of
 		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
-			m3ua:getstat_ep(EP);
+			m3ua:getstat_endpoint(EP);
 		{ok, #gtt_ep{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat_ep, [EP]) of
+			case rpc:call(Node, m3ua, getstat_endpoint, [EP]) of
 				{ok, OptionValues} ->
 					{ok, OptionValues};
 				{error, Reason} ->
@@ -637,14 +637,14 @@ stat_ep(EPRef) ->
 		OptionValues :: [{inet:stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an SCTP endpoint.
-%% @see //m3ua/m3ua:getstat_ep/2
+%% @see //m3ua/m3ua:getstat_endpoint/2
 stat_ep(EPRef, Options) when is_list(Options) ->
 	case find_ep(EPRef) of
 		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
-			m3ua:getstat_ep(EP, Options);
+			m3ua:getstat_endpoint(EP, Options);
 		{ok, #gtt_ep{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat_ep, [EP, Options]) of
+			case rpc:call(Node, m3ua, getstat_endpoint, [EP, Options]) of
 				{ok, OptionValues} ->
 					{ok, OptionValues};
 				{error, Reason} ->
