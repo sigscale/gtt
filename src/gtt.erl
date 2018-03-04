@@ -453,7 +453,7 @@ start_ep1(Node, Port, Options, Callback) ->
 		SgName :: term(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
-%% @doc Register remote Appication Server.
+%% @doc Register remote Application Server.
 start_sg(SgName) ->
 	F = fun() ->
 		case mnesia:read(gtt_sg, SgName, read) of
@@ -489,7 +489,7 @@ start_sg1(Node, SgName, NA, Keys, Mode, Min, Max) ->
 	when
 		AsName :: term(),
 		Result :: ok.
-%% @doc Register local Appication Server.
+%% @doc Register local Application Server.
 start_as(AsName) ->
 	F = fun() ->
 		case mnesia:read(gtt_as, AsName, write) of
