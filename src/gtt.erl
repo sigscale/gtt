@@ -529,11 +529,11 @@ start_as2(Node1, _, _, _, _, _, _, _, #gtt_as{node = Node2} = As)
 start_as2(_, _, _, _, _, _, _, 0 = _Max, As) ->
 	As;
 start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
-		Max, #gtt_as{name = AsName, keys = Keys, na = Na, mode = Mode,
+		Max, #gtt_as{keys = Keys, na = Na, mode = Mode,
 		asp = Asps} = As) when Node == node() ->
 	case m3ua:sctp_establish(EP, Address, Port, Options) of
 		{ok, Assoc} ->
-			case start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) of
+			case start_as3(Node, EP, Assoc, Na, Keys, Mode) of
 				ok ->
 					NewAsps = [{EP, Assoc} | Asps],
 					start_as2(Node, EP, Address, Port, Options,
@@ -548,11 +548,11 @@ start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
 			As
 	end;
 start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
-		Max, #gtt_as{name = AsName, keys = Keys, na = Na, mode = Mode,
+		Max, #gtt_as{keys = Keys, na = Na, mode = Mode,
 		asp = Asps} = As) ->
 	case rpc:call(Node, m3ua, sctp_establish, [EP, Address, Port, Options]) of
 		{ok, Assoc} ->
-			case start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) of
+			case start_as3(Node, EP, Assoc, Na, Keys, Mode) of
 				ok ->
 					NewAsps = [{EP, Assoc} | Asps],
 					start_as2(Node, EP, Address, Port, Options,
@@ -567,33 +567,33 @@ start_as2(Node, EP, Address, Port, Options, SCTPRole, M3UARole,
 			As
 	end.
 %% @hidden
-start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) when Node == node() ->
+start_as3(Node, EP, Assoc, Na, Keys, Mode) when Node == node() ->
 	case m3ua:asp_up(EP, Assoc) of
 		ok ->
-			start_as4(Node, EP, Assoc, AsName, Na, Keys, Mode);
+			start_as4(Node, EP, Assoc, Na, Keys, Mode);
 		{error, Reason} ->
 			{error, Reason}
 	end;
-start_as3(Node, EP, Assoc, AsName, Na, Keys, Mode) ->
+start_as3(Node, EP, Assoc, Na, Keys, Mode) ->
 	case rpc:call(Node, m3ua, asp_up, [EP, Assoc]) of
 		ok ->
-			start_as4(Node, EP, Assoc, AsName, Na, Keys, Mode);
+			start_as4(Node, EP, Assoc, Na, Keys, Mode);
 		{error, Reason} ->
 			{error, Reason};
 		{badrpc, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
-start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, AsName) of
+start_as4(Node, EP, Assoc, NA, Keys, Mode) when Node == node() ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode) of
 		{ok, _} ->
 			ok;
 		{error, Reason} ->
 			{error, Reason}
 	end;
-start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) ->
+start_as4(Node, EP, Assoc, NA, Keys, Mode) ->
 	case rpc:call(Node, m3ua, register,
-			[EP, Assoc, NA, Keys, Mode, AsName]) of
+			[EP, Assoc, NA, Keys, Mode]) of
 		{ok, _} ->
 			ok;
 		{error, Reason} ->
