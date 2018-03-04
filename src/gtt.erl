@@ -20,7 +20,8 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_endpoint/6, add_endpoint/7, find_endpoint/1, start_endpoint/1]).
+-export([add_endpoint/6, add_endpoint/7, find_endpoint/1,
+		start_endpoint/1, stat_endpoint/1, stat_endpoint/2]).
 -export([add_sg/6, add_sg/7, find_sg/1, start_sg/1]).
 -export([add_as/7, add_as/8, find_as/1, start_as/1]).
 -export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
@@ -558,6 +559,59 @@ start_as4(Node, EP, Assoc, AsName, NA, Keys, Mode) ->
 		{error, Reason} ->
 			{error, Reason};
 		{badrpc, Reason} ->
+			{error, Reason}
+	end.
+
+-spec stat_endpoint(EPRef) -> Result
+	when
+		EPRef :: term(),
+		Result :: {ok, OptionValues} | {error, inet:posix()},
+		OptionValues :: [{inet:stat_option(), Count}],
+		Count :: non_neg_integer().
+%% @doc Get socket statistics for an endpoint.
+%% @see {@link //m3ua/m3ua:getstat_endpoint/1}
+stat_endpoint(EPRef) ->
+	case find_endpoint(EPRef) of
+		{ok, #gtt_endpoint{node = Node, ep = EP}}
+				when Node == undefined orelse Node == node() ->
+			m3ua:getstat_endpoint(EP);
+		{ok, #gtt_endpoint{node = Node, ep = EP}} ->
+			case rpc:call(Node, m3ua, getstat_endpoint, [EP]) of
+				{ok, OptionValues} ->
+					{ok, OptionValues};
+				{error, Reason} ->
+					{error, Reason};
+				{badrpc, Reason} ->
+					{error, Reason}
+			end;
+		{error, Reason} ->
+			{error, Reason}
+	end.
+
+-spec stat_endpoint(EPRef, Options) -> Result
+	when
+		EPRef :: term(),
+		Options :: [inet:stat_option()],
+		Result :: {ok, OptionValues} | {error, inet:posix()},
+		OptionValues :: [{inet:stat_option(), Count}],
+		Count :: non_neg_integer().
+%% @doc Get socket statistics for an endpoint.
+%% @see {@link //m3ua/m3ua:getstat_endpoint/2}
+stat_endpoint(EPRef, Options) when is_list(Options) ->
+	case find_endpoint(EPRef) of
+		{ok, #gtt_endpoint{node = Node, ep = EP}}
+				when Node == undefined orelse Node == node() ->
+			m3ua:getstat_endpoint(EP, Options);
+		{ok, #gtt_endpoint{node = Node, ep = EP}} ->
+			case rpc:call(Node, m3ua, getstat_endpoint, [EP, Options]) of
+				{ok, OptionValues} ->
+					{ok, OptionValues};
+				{error, Reason} ->
+					{error, Reason};
+				{badrpc, Reason} ->
+					{error, Reason}
+			end;
+		{error, Reason} ->
 			{error, Reason}
 	end.
 
