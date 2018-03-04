@@ -20,7 +20,7 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_ep/6, add_ep/7, find_ep/1,
+-export([add_ep/6, add_ep/7, get_ep/0, find_ep/1,
 		start_ep/1, stat_ep/1, stat_ep/2]).
 -export([add_sg/6, add_sg/7, find_sg/1, start_sg/1]).
 -export([add_as/7, add_as/8, get_as/0, find_as/1, start_as/1]).
@@ -87,6 +87,20 @@ add_ep(Name, {LocalAddr, LocalPort, _} = Local,
 			{ok, EP};
 		{aborted, Reason} ->
 			{error, Reason}
+	end.
+
+-spec get_ep() -> EpNames
+	when
+		EpNames :: [EpName],
+		EpName :: term().
+%% @doc Get names of all SCTP endpoint specifications.
+get_ep() ->
+	F = fun() -> mnesia:all_keys(gtt_ep) end,
+	case mnesia:transaction(F) of
+		{atomic, EpNames} ->
+			EpNames;
+		{aborted, Reason} ->
+			exit(Reason)
 	end.
 
 -spec find_ep(EpName) -> Result
