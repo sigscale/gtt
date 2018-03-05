@@ -69,7 +69,42 @@ erlang:display({?MODULE, ?LINE, init, _Fsm, _EP, _Assoc}),
 		Reason :: term().
 %% @doc MTP-TRANSFER indication
 %%%  Called when data has arrived for the MTP user.
-transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State) ->
+transfer(Fsm1, EP, Assoc, Stream, RC, OPC, 27, SLS, SIO, UnitData, State) ->
+	log(Fsm1, EP, Assoc, Stream, RC, OPC, 27, SLS, SIO, UnitData),
+	% Keys = gtt:find_pc(4015) ++ gtt:find_pc(2098),
+	AsKeys = gtt:find_pc(4015),
+	MatchHead = #m3ua_as{routing_key = '$1', name = '_',
+			min_asp = '_', max_asp = '_', state = active, asp = '$2'},
+   MatchConditions = [{'=:=', '$1', RK} || RK <- AsKeys],
+   MatchBody = ['$2'],
+   MatchFunction = {MatchHead, MatchConditions, MatchBody},
+   MatchExpression = [MatchFunction],
+   ASPs = mnesia:dirty_select(m3ua_as, MatchExpression),
+	F = fun(#m3ua_as_asp{state = active}) ->
+				true;
+			(_) ->
+				false
+	end,
+	case lists:filter(F, ASPs) of
+		[] ->
+			ok;
+		Active ->
+			#m3ua_as_asp{fsm = Fsm2} = lists:nth(rand:uniform(length(Active)), Active),
+			case catch m3ua:transfer(Fsm2, 1, OPC, 4015, SLS, SIO, UnitData) of
+				{Error, Reason} when Error == error; Error == 'EXIT' ->
+					error_logger:error_report(["MTP-TRANSFER error",
+							{error, Reason}]);
+				ok ->
+					ok
+			end
+	end,
+	{ok, State}.
+%transfer(Fsm1, EP, Assoc, Stream, RC, OPC, 6209, SLS, SIO, UnitData, State) ->
+%	PC = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 6211, 6210, 2306]]),
+%	SgKeys = gtt:find_pc(6211),
+
+%% @hidden
+log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData) ->
 	#sccp_unitdata{called_party = #party_address{ri = CldRI,
 			ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
 			nai = CldNAI, gt = CldGT},
@@ -83,8 +118,7 @@ transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State) ->
 			{dpc, DPC}, {sls, SLS}, {sio, SIO},
 			{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
 			{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
-			{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]),
-	{ok, State}.
+			{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]).
 
 -spec pause(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
 	when
