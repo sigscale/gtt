@@ -474,7 +474,11 @@ start_sg(SgName) ->
 					{error, Reason};
 				{error, Reason} ->
 					{error, Reason}
-			end
+			end;
+		{atomic, []} ->
+			{error, not_found};
+		{aborted, Reason} ->
+			{error, Reason}
 	end.
 
 -spec start_as(AsName) -> Result
