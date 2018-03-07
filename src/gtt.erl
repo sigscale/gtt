@@ -43,7 +43,7 @@
 		Callback :: atom() | #m3ua_fsm_cb{},
 		Port :: inet:port_number(),
 		Address :: inet:ip_address(),
-		Options :: list(),
+		Options :: [m3ua:option()],
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
@@ -63,7 +63,7 @@ add_ep(Name, Local, Remote, SCTPRole, M3UARole, Callback) ->
 		Node :: node(),
 		Port :: inet:port_number(),
 		Address :: inet:ip_address(),
-		Options :: list(),
+		Options :: [m3ua:option()],
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
