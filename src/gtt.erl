@@ -22,7 +22,6 @@
 
 -export([add_ep/6, add_ep/7, get_ep/0, find_ep/1,
 		start_ep/1, stat_ep/1, stat_ep/2]).
--export([add_sg/6, add_sg/7, get_sg/0, find_sg/1, start_sg/1]).
 -export([add_as/7, add_as/8, get_as/0, find_as/1, start_as/1]).
 -export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
 
@@ -32,14 +31,18 @@
 %%  The gtt public API
 %%----------------------------------------------------------------------
 
+-type ep_ref() :: term().
+-type as_ref() :: term().
+-export_type([ep_ref/0, as_ref/0]).
+
 -spec add_ep(Name, Local, Remote,
-		SCTPRole, M3UARole, Callback) -> Result
+		SctpRole, M3uaRole, Callback) -> Result
 	when
-		Name :: term(),
+		Name :: ep_ref(),
 		Local :: {Address, Port, Options},
 		Remote :: undefined | {Address, Port, Options},
-		SCTPRole :: client | server,
-		M3UARole :: sgp | asp,
+		SctpRole :: client | server,
+		M3uaRole :: sgp | asp,
 		Callback :: atom() | #m3ua_fsm_cb{},
 		Port :: inet:port_number(),
 		Address :: inet:ip_address(),
@@ -47,18 +50,18 @@
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
-%% @equiv add_ep(Name, Local, Remote, SCTPRole, M3UARole, Callback, node())
-add_ep(Name, Local, Remote, SCTPRole, M3UARole, Callback) ->
-	add_ep(Name, Local, Remote, SCTPRole, M3UARole, Callback, node()).
+%% @equiv add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback, node())
+add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback) ->
+	add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback, node()).
 
 -spec add_ep(Name, Local, Remote,
-		SCTPRole, M3UARole, Callback, Node) -> Result
+		SctpRole, M3uaRole, Callback, Node) -> Result
 	when
-		Name :: term(),
+		Name :: ep_ref(),
 		Local :: {Address, Port, Options},
 		Remote :: undefined | {Address, Port, Options},
-		SCTPRole :: client | server,
-		M3UARole :: sgp | asp,
+		SctpRole :: client | server,
+		M3uaRole :: sgp | asp,
 		Callback :: atom() | #m3ua_fsm_cb{},
 		Node :: node(),
 		Port :: inet:port_number(),
@@ -69,15 +72,15 @@ add_ep(Name, Local, Remote, SCTPRole, M3UARole, Callback) ->
 		Reason :: term().
 %% @doc Create an SCTP endpoint specification.
 add_ep(Name, {LocalAddr, LocalPort, _} = Local,
-		Remote, SCTPRole, M3UARole, Callback, Node) when
+		Remote, SctpRole, M3uaRole, Callback, Node) when
 		is_tuple(LocalAddr), is_integer(LocalPort),
 		((is_tuple(Remote)) orelse (Remote == undefined)),
 		((is_tuple(Callback)) orelse (is_atom(Callback))),
-		((SCTPRole == client) orelse (SCTPRole == server)),
-		((M3UARole == sgp) orelse (M3UARole == asp))->
+		((SctpRole == client) orelse (SctpRole == server)),
+		((M3uaRole == sgp) orelse (M3uaRole == asp))->
 	F = fun() ->
 			GttEP = #gtt_ep{name = Name, local = Local,
-				remote = Remote, sctp_role = SCTPRole, m3ua_role = M3UARole,
+				remote = Remote, sctp_role = SctpRole, m3ua_role = M3uaRole,
 				callback = Callback, node = Node},
 			mnesia:write(gtt_ep, GttEP, write),
 			GttEP
@@ -92,7 +95,7 @@ add_ep(Name, {LocalAddr, LocalPort, _} = Local,
 -spec get_ep() -> EpNames
 	when
 		EpNames :: [EpName],
-		EpName :: term().
+		EpName :: ep_ref().
 %% @doc Get names of all SCTP endpoint specifications.
 get_ep() ->
 	F = fun() -> mnesia:all_keys(gtt_ep) end,
@@ -105,7 +108,7 @@ get_ep() ->
 
 -spec find_ep(EpName) -> Result
 	when
-		EpName :: term(),
+		EpName :: ep_key(),
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
@@ -121,15 +124,16 @@ find_ep(EpName) ->
 			{error, Reason}
 	end.
 
--spec add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, EPs) -> Result
+-spec add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, EPs) -> Result
 	when
-		Name :: term(),
+		Name :: as_key(),
+		Role :: as | sg,
 		NA :: pos_integer(),
 		Keys :: [Key],
 		Mode :: override | loadshare | broadcast,
 		MinAsp :: pos_integer(),
 		MaxAsp :: pos_integer(),
-		EPs :: [EPRef],
+		EPs :: [ep_ref()],
 		Result :: {ok, AS} | {error, Reason},
 		Key :: {DPC, SIs, OPCs},
 		DPC :: pos_integer(),
@@ -137,23 +141,23 @@ find_ep(EpName) ->
 		OPCs :: [OPC],
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
-		EPRef :: term(),
 		AS :: #gtt_as{},
 		Reason :: term().
 %% @doc Create new Application Server specification.
-add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, EPs) ->
-	add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, node(), EPs).
+add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, EPs) ->
+	add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, node(), EPs).
 
--spec add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs) -> Result
+-spec add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs) -> Result
 	when
-		Name :: term(),
+		Name :: as_key(),
+		Role :: as | sg,
 		NA :: pos_integer(),
 		Keys :: [Key],
 		Mode :: override | loadshare | broadcast,
 		MinAsp :: pos_integer(),
 		MaxAsp :: pos_integer(),
 		Node :: node(),
-		EPs :: [EPRef],
+		EPs :: [ep_ref()],
 		Result :: {ok, AS} | {error, Reason},
 		Key :: {DPC, SIs, OPCs},
 		DPC :: pos_integer(),
@@ -161,17 +165,17 @@ add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, EPs) ->
 		OPCs :: [OPC],
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
-		EPRef :: term(),
 		AS :: #gtt_as{},
 		Reason :: term().
 %% @doc Create new Application Server specification.
-add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
+add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
 		when is_integer(NA), is_list(Keys), is_integer(MinAsp),
 		is_integer(MaxAsp), ((Mode == override) orelse (Mode == loadshare)
-		orelse (Mode == broadcast)) ->
+		orelse (Mode == broadcast)), ((Role == as) orelse (Role == sg)) ->
 	F = fun() ->
-			GttAs = #gtt_as{name = Name, na = NA, keys = Keys,
-					mode = Mode, min_asp = MinAsp, max_asp = MaxAsp,
+			GttAs = #gtt_as{name = Name, role = Role,
+					na = NA, keys = Keys, mode = Mode,
+					min_asp = MinAsp, max_asp = MaxAsp,
 					node = Node, eps = EPs},
 			mnesia:write(gtt_as, GttAs, write),
 			GttAs
@@ -186,7 +190,7 @@ add_as(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
 -spec get_as() -> AsNames
 	when
 		AsNames :: [AsName],
-		AsName :: term().
+		AsName :: as_key().
 %% @doc Get names of all Application Server specifications.
 get_as() ->
 	F = fun() -> mnesia:all_keys(gtt_as) end,
@@ -199,7 +203,7 @@ get_as() ->
 
 -spec find_as(AsName) -> Result
 	when
-		AsName :: term(),
+		AsName :: as_key(),
 		Result :: {ok, AS} | {error, Reason},
 		AS :: #gtt_as{},
 		Reason :: term().
@@ -215,99 +219,9 @@ find_as(AsName) ->
 			{error, Reason}
 	end.
 
--spec add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp) -> Result
-	when
-		Name :: term(),
-		NA :: pos_integer(),
-		Keys :: [Key],
-		Mode :: override | loadshare | broadcast,
-		MinAsp :: pos_integer(),
-		MaxAsp :: pos_integer(),
-		Result :: {ok, AS} | {error, Reason},
-		Key :: {DPC, SIs, OPCs},
-		DPC :: pos_integer(),
-		SIs :: [SI],
-		OPCs :: [OPC],
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
-		AS :: #gtt_sg{},
-		Reason :: term().
-%% @doc Create new Signaling Gateway specification.
-add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp) ->
-	add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp, node()).
-
--spec add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node) -> Result
-	when
-		Name :: term(),
-		NA :: pos_integer(),
-		Keys :: [Key],
-		Mode :: override | loadshare | broadcast,
-		MinAsp :: pos_integer(),
-		MaxAsp :: pos_integer(),
-		Node :: node(),
-		Result :: {ok, AS} | {error, Reason},
-		Key :: {DPC, SIs, OPCs},
-		DPC :: pos_integer(),
-		SIs :: [SI],
-		OPCs :: [OPC],
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
-		AS :: #gtt_sg{},
-		Reason :: term().
-%% @doc Create new Signaling Gateway specification.
-add_sg(Name, NA, Keys, Mode, MinAsp, MaxAsp, Node)
-		when is_integer(NA), is_list(Keys), is_integer(MinAsp),
-		is_integer(MaxAsp), ((Mode == override) orelse (Mode == loadshare)
-		orelse (Mode == broadcast))->
-	F = fun() ->
-			GttSg = #gtt_sg{name = Name, na = NA, keys = Keys,
-					mode = Mode, min_asp = MinAsp, max_asp = MaxAsp,
-					node = Node},
-			mnesia:write(gtt_sg, GttSg, write),
-			GttSg
-	end,
-	case mnesia:transaction(F) of
-		{atomic, SG} ->
-			{ok, SG};
-		{aborted, Reason} ->
-			{error, Reason}
-	end.
-
--spec get_sg() -> SgNames
-	when
-		SgNames :: [SgName],
-		SgName :: term().
-%% @doc Get names of all Signaling Gateway specifications.
-get_sg() ->
-	F = fun() -> mnesia:all_keys(gtt_sg) end,
-	case mnesia:transaction(F) of
-		{atomic, SgNames} ->
-			SgNames;
-		{aborted, Reason} ->
-			exit(Reason)
-	end.
-
--spec find_sg(SgName) -> Result
-	when
-		SgName :: term(),
-		Result :: {ok, SG} | {error, Reason},
-		SG :: #gtt_sg{},
-		Reason :: term().
-%% @doc Search for an SCTP endpoint specification.
-find_sg(SgName) ->
-	F = fun() -> mnesia:read(gtt_sg, SgName, read) end,
-	case mnesia:transaction(F) of
-		{atomic, []} ->
-			{error, not_found};
-		{atomic, [#gtt_sg{} = SG]} ->
-			{ok, SG};
-		{aborted, Reason} ->
-			{error, Reason}
-	end.
-
 -spec add_key(Key) -> Result
 	when
-		Key :: routing_key(),
+		Key :: m3ua:routing_key(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Add MTP3 point codes to Point Code route table.
@@ -331,8 +245,7 @@ add_key({NA, Keys, _} = Key) when is_list(Keys),
 -spec find_pc(DPC) -> Result
 	when
 		DPC :: pos_integer(),
-		Result :: [ASref],
-		ASref :: routing_key().
+		Result :: [as_ref()],
 %% @equiv find_pc(undefined, DPC, undefined, undefined)
 find_pc(DPC) ->
 	find_pc(undefined, DPC, undefined, undefined).
@@ -341,8 +254,7 @@ find_pc(DPC) ->
 	when
 		DPC :: pos_integer(),
 		SI :: pos_integer() | undefined,
-		Result :: [ASref],
-		ASref :: routing_key().
+		Result :: [m3ua:routing_key()].
 %% @equiv find_pc(undefined, DPC, SI, undefined)
 find_pc(DPC, SI) ->
 	find_pc(undefined, DPC, SI, undefined).
@@ -352,8 +264,7 @@ find_pc(DPC, SI) ->
 		DPC :: pos_integer(),
 		SI :: pos_integer() | undefined,
 		OPC :: pos_integer() | undefined,
-		Result :: [ASref],
-		ASref :: routing_key().
+		Result :: [m3ua:routing_key()].
 %% @equiv find_pc(undefined, DPC, SI, OPC)
 find_pc(DPC, SI, OPC) ->
 	find_pc(undefined, DPC, SI, OPC).
@@ -364,8 +275,7 @@ find_pc(DPC, SI, OPC) ->
 		DPC :: pos_integer(),
 		SI :: pos_integer() | undefined,
 		OPC :: pos_integer() | undefined,
-		Result :: [ASref],
-		ASref :: routing_key().
+		Result :: [m3ua:routing_key()].
 %% @doc Find Application Servers matching destination.
 find_pc(NA, DPC, SI, OPC)
 		when ((NA == undefined) or is_integer(NA)),
@@ -414,10 +324,10 @@ start_ep(EpName) ->
 			{error, Reason}
 	end.
 %% @hidden
-start_ep1(#gtt_ep{sctp_role = SCTPRole, m3ua_role = M3UARole,
+start_ep1(#gtt_ep{sctp_role = SctpRole, m3ua_role = M3uaRole,
 		callback = Callback, local = {LocalAddr, LocalPort, Options},
 		node = Node} = EP) ->
-	NewOptions = [{sctp_role, SCTPRole}, {m3ua_role, M3UARole},
+	NewOptions = [{sctp_role, SctpRole}, {m3ua_role, M3uaRole},
 			{ip, LocalAddr}] ++ Options,
 	case catch start_ep2(Node, LocalPort, NewOptions, Callback) of
 		{ok, Pid} ->
@@ -443,41 +353,6 @@ start_ep2(Node, Port, Options, Callback) ->
 		{error, Reason} ->
 			{error, Reason};
 		{badrpc, Reason} ->
-			{error, Reason}
-	end.
-
--spec start_sg(SgName) -> Result
-	when
-		SgName :: term(),
-		Result :: ok | {error, Reason},
-		Reason :: term().
-%% @doc Register remote Application Server.
-start_sg(SgName) ->
-	F = fun() -> mnesia:read(gtt_sg, SgName, read) end,
-	case mnesia:transaction(F) of
-		{atomic, [#gtt_sg{na = NA, keys = Keys, mode = Mode,
-				min_asp = Min, max_asp = Max, node = Node}]}
-				when Node == node() ->
-			case m3ua:as_add(SgName, NA, Keys, Mode, Min, Max) of
-				{ok, _AS} ->
-					ok;
-				{error, Reason} ->
-					{error, Reason}
-			end;
-		{atomic, [#gtt_sg{na = NA, keys = Keys, mode = Mode,
-				min_asp = Min, max_asp = Max, node = Node}]} ->
-			case rpc:call(Node, m3ua, as_add,
-					[SgName, NA, Keys, Mode, Min, Max]) of
-				{ok, _AS} ->
-					ok;
-				{badrpc, Reason} ->
-					{error, Reason};
-				{error, Reason} ->
-					{error, Reason}
-			end;
-		{atomic, []} ->
-			{error, not_found};
-		{aborted, Reason} ->
 			{error, Reason}
 	end.
 
@@ -516,7 +391,7 @@ start_as1(AS, N, [H | T]) ->
 	F = fun() -> mnesia:read(gtt_ep, H, read) end,
 	case mnesia:transaction(F) of
 		{atomic, [#gtt_ep{sctp_role = server} = _EP]} ->
-			% @todo handle AS as SCTP server
+			% @todo handle SCTP servers
 			start_as1(AS, N, T);
 		{atomic, [#gtt_ep{sctp_role = client} = EP]} ->
 			start_as2(EP, AS, N, T);
@@ -531,12 +406,12 @@ start_as1(AS, N, [H | T]) ->
 %% @hidden
 start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
 		remote = {Address, Port, Options}} = EP,
-		#gtt_as{asp = ASPs} = AS, N, T) when Node == node() ->
+		#gtt_as{fsms = Fsms} = AS, N, T) when Node == node() ->
 	case m3ua:sctp_establish(Pid, Address, Port, Options) of
 		{ok, Assoc} ->
 			case start_as3(EP, Assoc, AS) of
 				ok ->
-					NewAS = AS#gtt_as{asp = [{Pid, Assoc} | ASPs]},
+					NewAS = AS#gtt_as{fsms = [{Pid, Assoc} | Fsms]},
 					start_as1(NewAS, N - 1, T);
 				{error, _Reason} ->
 					%% @todo close connection!
@@ -550,12 +425,12 @@ start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
 	end;
 start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
 		remote = {Address, Port, Options}} = EP,
-		#gtt_as{asp = ASPs} = AS, N, T) ->
+		#gtt_as{fsms = Fsms} = AS, N, T) ->
 	case rpc:call(Node, m3ua, sctp_establish, [Pid, Address, Port, Options]) of
 		{ok, Assoc} ->
 			case start_as3(EP, Assoc, AS) of
 				ok ->
-					NewAS = AS#gtt_as{asp = [{Pid, Assoc} | ASPs]},
+					NewAS = AS#gtt_as{fsms = [{Pid, Assoc} | Fsms]},
 					start_as1(NewAS, N - 1, T);
 				{error, _Reason} ->
 					%% @todo close connection!
@@ -620,16 +495,16 @@ start_as5(Pid, Assoc, Node) ->
 			{error, Reason}
 	end.
 
--spec stat_ep(EPRef) -> Result
+-spec stat_ep(EpRef) -> Result
 	when
-		EPRef :: term(),
+		EpRef :: ep_ref(),
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{inet:stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an SCTP endpoint.
 %% @see //m3ua/m3ua:getstat_endpoint/1
-stat_ep(EPRef) ->
-	case find_ep(EPRef) of
+stat_ep(EpRef) ->
+	case find_ep(EpRef) of
 		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
 			m3ua:getstat_endpoint(EP);
@@ -646,17 +521,17 @@ stat_ep(EPRef) ->
 			{error, Reason}
 	end.
 
--spec stat_ep(EPRef, Options) -> Result
+-spec stat_ep(EpRef, Options) -> Result
 	when
-		EPRef :: term(),
+		EpRef :: ep_ref(),
 		Options :: [inet:stat_option()],
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{inet:stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an SCTP endpoint.
 %% @see //m3ua/m3ua:getstat_endpoint/2
-stat_ep(EPRef, Options) when is_list(Options) ->
-	case find_ep(EPRef) of
+stat_ep(EpRef, Options) when is_list(Options) ->
+	case find_ep(EpRef) of
 		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
 			m3ua:getstat_endpoint(EP, Options);

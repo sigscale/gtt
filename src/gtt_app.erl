@@ -50,7 +50,7 @@
 %% @see //kernel/application:start/2
 %%
 start(normal = _StartType, _Args) ->
-	Tables = [gtt_ep, gtt_as, gtt_sg],
+	Tables = [gtt_ep, gtt_as],
 	case mnesia:wait_for_tables(Tables, 60000) of
 		ok ->
 			start1();
@@ -258,25 +258,6 @@ install4(Nodes, Tables) ->
 	end.
 %% @hidden
 install5(Nodes, Tables) ->
-	case mnesia:create_table(gtt_sg, [{disc_copies, Nodes},
-			{attributes, record_info(fields, gtt_sg)}]) of
-		{atomic, ok} ->
-			error_logger:info_msg("Created new signaling gateway table.~n"),
-			install6(Nodes, [gtt_sg | Tables]);
-		{aborted, {not_active, _, Node} = Reason} ->
-			error_logger:error_report(["Mnesia not started on node",
-					{node, Node}]),
-			{error, Reason};
-		{aborted, {already_exists, gtt_sg}} ->
-			error_logger:info_msg("Found existing signaling gateway table.~n"),
-			install6(Nodes, [gtt_sg | Tables]);
-		{aborted, Reason} ->
-			error_logger:error_report([mnesia:error_description(Reason),
-				{error, Reason}]),
-			{error, Reason}
-	end.
-%% @hidden
-install6(Nodes, Tables) ->
 	case mnesia:create_table(gtt_pc, [{disc_copies, Nodes},
 			{attributes, record_info(fields, gtt_pc)},
 			{type, bag}]) of
@@ -295,6 +276,7 @@ install6(Nodes, Tables) ->
 				{error, Reason}]),
 			{error, Reason}
 	end.
+
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------

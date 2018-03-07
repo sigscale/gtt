@@ -30,23 +30,15 @@
 
 -record(gtt_as,
 		{name :: term(),
+		role :: as | sg,
 		na :: pos_integer(),
 		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
 		mode :: override | loadshare | broadcast,
 		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
 		node :: node(),
-		asp = [] :: [{EP :: pid(), Assoc :: pos_integer()}],
+		fsms = [] :: [{EP :: pid(), Assoc :: pos_integer()}],
 		eps = []:: [EPRef :: term()]}).
-
--record(gtt_sg,
-		{name :: term(),
-		na :: pos_integer(),
-		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
-		mode :: override | loadshare | broadcast,
-		min_asp = 1 :: pos_integer(),
-		max_asp :: pos_integer(),
-		node :: node()}).
 
 -record(gtt_pc,
 		{dpc :: pos_integer() | undefined,
