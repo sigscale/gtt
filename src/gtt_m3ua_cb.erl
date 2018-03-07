@@ -23,7 +23,7 @@
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
 %% m3ua_asp_fsm callbacks
--export([init/3, transfer/11, pause/7, resume/7, status/7,
+-export([init/4, transfer/11, pause/7, resume/7, status/7,
 		register/7, asp_up/4, asp_down/4, asp_active/4, asp_inactive/4]).
 
 -include("gtt.hrl").
@@ -37,8 +37,9 @@
 %%  The m3ua_[asp|sgp]_fsm callabcks
 %%----------------------------------------------------------------------
 
--spec init(Fsm, EP, Assoc) -> Result
+-spec init(Module, Fsm, EP, Assoc) -> Result
 	when
+		Module :: atom(),
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
@@ -47,8 +48,8 @@
 		Reason :: term().
 %% @doc Initialize ASP/SGP callback handler
 %%%  Called when ASP is started.
-init(_Fsm, _EP, _Assoc) ->
-erlang:display({?MODULE, ?LINE, init, _Fsm, _EP, _Assoc}),
+init(_Module, _Fsm, _EP, _Assoc) ->
+erlang:display({?MODULE, ?LINE, init, _Module, _Fsm, _EP, _Assoc}),
 	{ok, []}.
 
 -spec transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
