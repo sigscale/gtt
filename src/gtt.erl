@@ -22,7 +22,7 @@
 
 -export([add_ep/6, add_ep/7, get_ep/0, find_ep/1,
 		start_ep/1, stat_ep/1, stat_ep/2]).
--export([add_as/7, add_as/8, get_as/0, find_as/1, start_as/1]).
+-export([add_as/8, add_as/9, get_as/0, find_as/1, start_as/1]).
 -export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
 
 -include("gtt.hrl").
@@ -108,7 +108,7 @@ get_ep() ->
 
 -spec find_ep(EpName) -> Result
 	when
-		EpName :: ep_key(),
+		EpName :: ep_ref(),
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
@@ -126,7 +126,7 @@ find_ep(EpName) ->
 
 -spec add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, EPs) -> Result
 	when
-		Name :: as_key(),
+		Name :: as_ref(),
 		Role :: as | sg,
 		NA :: pos_integer(),
 		Keys :: [Key],
@@ -149,7 +149,7 @@ add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, EPs) ->
 
 -spec add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs) -> Result
 	when
-		Name :: as_key(),
+		Name :: as_ref(),
 		Role :: as | sg,
 		NA :: pos_integer(),
 		Keys :: [Key],
@@ -190,7 +190,7 @@ add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
 -spec get_as() -> AsNames
 	when
 		AsNames :: [AsName],
-		AsName :: as_key().
+		AsName :: as_ref().
 %% @doc Get names of all Application Server specifications.
 get_as() ->
 	F = fun() -> mnesia:all_keys(gtt_as) end,
@@ -203,7 +203,7 @@ get_as() ->
 
 -spec find_as(AsName) -> Result
 	when
-		AsName :: as_key(),
+		AsName :: as_ref(),
 		Result :: {ok, AS} | {error, Reason},
 		AS :: #gtt_as{},
 		Reason :: term().
@@ -245,7 +245,7 @@ add_key({NA, Keys, _} = Key) when is_list(Keys),
 -spec find_pc(DPC) -> Result
 	when
 		DPC :: pos_integer(),
-		Result :: [as_ref()],
+		Result :: [as_ref()].
 %% @equiv find_pc(undefined, DPC, undefined, undefined)
 find_pc(DPC) ->
 	find_pc(undefined, DPC, undefined, undefined).
