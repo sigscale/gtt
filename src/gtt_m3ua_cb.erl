@@ -51,13 +51,13 @@ init(_Fsm, _EP, _Assoc) ->
 erlang:display({?MODULE, ?LINE, init, _Fsm, _EP, _Assoc}),
 	{ok, []}.
 
--spec transfer(Fsm, EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State) -> Result
+-spec transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
-		RK :: routing_key(),
+		RC :: pos_integer() | undefined,
 		OPC :: pos_integer(),
 		DPC :: pos_integer(),
 		SLS :: non_neg_integer(),
@@ -120,14 +120,14 @@ log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData) ->
 			{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
 			{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]).
 
--spec pause(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
+-spec pause(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RK :: routing_key(),
+		RC :: pos_integer() | undefined,
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
@@ -135,18 +135,18 @@ log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData) ->
 		Reason :: term().
 %% @doc MTP-PAUSE indication
 %%%  Called when an SS7 destination is unreachable.
-pause(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
-erlang:display({?MODULE, ?LINE, pause, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State}),
+pause(_Fsm, _EP, _Assoc, _Stream, _RC, _DPCs, State) ->
+erlang:display({?MODULE, ?LINE, pause, _Fsm, _EP, _Assoc, _Stream, _RC, _DPCs, State}),
 	{ok, State}.
 
--spec resume(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
+-spec resume(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RK :: routing_key(),
+		RC :: pos_integer() | undefined,
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
@@ -155,18 +155,18 @@ erlang:display({?MODULE, ?LINE, pause, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, S
 %% @doc MTP-RESUME indication.
 %%%  Called when a previously unreachable SS7 destination
 %%%  becomes reachable.
-resume(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
-erlang:display({?MODULE, ?LINE, resume, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State}),
+resume(_Fsm, _EP, _Assoc, _Stream, _RC, _DPCs, State) ->
+erlang:display({?MODULE, ?LINE, resume, _Fsm, _EP, _Assoc, _Stream, _RC, _DPCs, State}),
 	{ok, State}.
 
--spec status(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
+-spec status(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RK :: routing_key(),
+		RC :: pos_integer() | undefined,
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
@@ -174,8 +174,8 @@ erlang:display({?MODULE, ?LINE, resume, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, 
 		Reason :: term().
 %% @doc Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.
-status(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
-erlang:display({?MODULE, ?LINE, status, _Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State}),
+status(_Fsm, _EP, _Assoc, _Stream, _RC, _DPCs, State) ->
+erlang:display({?MODULE, ?LINE, status, _Fsm, _EP, _Assoc, _Stream, _RC, _DPCs, State}),
 	{ok, State}.
 
 -spec register(Fsm, EP, Assoc, NA, Keys, TMT, State) -> Result
