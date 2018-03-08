@@ -70,28 +70,41 @@ erlang:display({?MODULE, ?LINE, init, _Module, _Fsm, _EP, _Assoc}),
 		Reason :: term().
 %% @doc MTP-TRANSFER indication
 %%%  Called when data has arrived for the MTP user.
-transfer(Fsm1, EP, Assoc, Stream, RC, OPC, 27, SLS, SIO, UnitData, State) ->
-	log(Fsm1, EP, Assoc, Stream, RC, OPC, 27, SLS, SIO, UnitData),
-	% Keys = gtt:find_pc(4015) ++ gtt:find_pc(2098),
-	AsKeys = gtt:find_pc(4015),
+transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State)
+		when DPC =:= 2057; DPC =:= 2065 ->  % 1nce private addresses used by Emnify
+	log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData),
+	ASs = gtt:find_pc(2097) ++ gtt:find_pc(2098),
+	transfer1(OPC, SLS, SIO, UnitData, State, ASs);
+transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State)
+		when DPC == 6209 ->
+	log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData),
+	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 6211, 6210, 2306]]),
+	transfer1(OPC, SLS, SIO, UnitData, State, ASs).
+%% @hidden
+transfer1(OPC, SLS, SIO, UnitData, State, ASs) ->
 	MatchHead = #m3ua_as{routing_key = '$1', name = '_',
 			min_asp = '_', max_asp = '_', state = active, asp = '$2'},
-   MatchConditions = [{'=:=', '$1', RK} || RK <- AsKeys],
-   MatchBody = ['$2'],
+	% match specs require "double tuple parenthesis"
+	F1 = fun({NA, Keys, Mode}) ->
+				{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
+	end,
+   MatchConditions = lists:map(F1, ASs),
+	MatchBody = [{{'$1', '$2'}}],
    MatchFunction = {MatchHead, MatchConditions, MatchBody},
    MatchExpression = [MatchFunction],
    ASPs = mnesia:dirty_select(m3ua_as, MatchExpression),
-	F = fun(#m3ua_as_asp{state = active}) ->
-				true;
-			(_) ->
-				false
+	F2 = fun(F, [{{_, [{PC, _, _} | _], _}, L1} | T], Acc) ->
+				L2 = [A#m3ua_as_asp.fsm || A <- L1, A#m3ua_as_asp.state == active],
+				F(F, T, [[{PC, A} || A <- L2] | Acc]);
+			(_, [], Acc) ->
+				lists:reverse(lists:flatten(Acc))
 	end,
-	case lists:filter(F, ASPs) of
+	case F2(F2, ASPs, []) of
 		[] ->
 			ok;
 		Active ->
-			#m3ua_as_asp{fsm = Fsm2} = lists:nth(rand:uniform(length(Active)), Active),
-			case catch m3ua:transfer(Fsm2, 1, OPC, 4015, SLS, SIO, UnitData) of
+			{DPC, Fsm} = lists:nth(rand:uniform(length(Active)), Active),
+			case catch m3ua:transfer(Fsm, 1, OPC, DPC, SLS, SIO, UnitData) of
 				{Error, Reason} when Error == error; Error == 'EXIT' ->
 					error_logger:error_report(["MTP-TRANSFER error",
 							{error, Reason}]);
@@ -100,9 +113,6 @@ transfer(Fsm1, EP, Assoc, Stream, RC, OPC, 27, SLS, SIO, UnitData, State) ->
 			end
 	end,
 	{ok, State}.
-%transfer(Fsm1, EP, Assoc, Stream, RC, OPC, 6209, SLS, SIO, UnitData, State) ->
-%	PC = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 6211, 6210, 2306]]),
-%	SgKeys = gtt:find_pc(6211),
 
 %% @hidden
 log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData) ->
