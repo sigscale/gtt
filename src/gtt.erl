@@ -436,6 +436,8 @@ start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
 					%% @todo close connection!
 					start_as1(AS, N, T)
 			end;
+		{badrpc, {'EXIT', {timeout, _}}} ->
+			start_as1(AS, N, T);
 		{error, Reason} ->
 			error_logger:error_report(["Failed to establish SCTP connection",
 					{ep, EpName}, {node, Node},
