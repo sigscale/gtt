@@ -78,7 +78,7 @@ transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State)
 transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State)
 		when DPC == 6209 ->
 	log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData),
-	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 6211, 6210, 2306]]),
+	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 2089, 6210, 2306]]),
 	transfer1(OPC, SLS, SIO, UnitData, State, ASs).
 %% @hidden
 transfer1(OPC, SLS, SIO, UnitData, State, ASs) ->
