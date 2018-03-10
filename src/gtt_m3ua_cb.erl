@@ -71,28 +71,29 @@ erlang:display({?MODULE, ?LINE, init, _Module, _Fsm, _EP, _Assoc}),
 %% @doc MTP-TRANSFER indication
 %%%  Called when data has arrived for the MTP user.
 transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State)
-		when DPC =:= 2057; DPC =:= 2065 ->  % 1nce private addresses used by Emnify
-	log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData),
-	ASs = gtt:find_pc(2097) ++ gtt:find_pc(2098),
-	transfer1(OPC, SLS, SIO, UnitData, State, ASs);
-transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State)
-		when DPC == 6209 ->
+		when DPC =:= 2057; DPC =:= 2065 ->
 	log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData),
 	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 2089, 6210, 2306]]),
-	transfer1(OPC, SLS, SIO, UnitData, State, ASs).
+	transfer1(6209, SLS, SIO, UnitData, State, ASs);
+transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State)
+		when DPC == 6209 ->
+	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2097, 2098]]),
+	log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData),
+	transfer1(2057, SLS, SIO, UnitData, State, ASs).
 %% @hidden
 transfer1(OPC, SLS, SIO, UnitData, State, ASs) ->
+erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 	MatchHead = #m3ua_as{routing_key = '$1', name = '_',
 			min_asp = '_', max_asp = '_', state = active, asp = '$2'},
 	% match specs require "double tuple parenthesis"
 	F1 = fun({NA, Keys, Mode}) ->
 				{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
 	end,
-   MatchConditions = lists:map(F1, ASs),
+	MatchConditions = lists:map(F1, ASs),
 	MatchBody = [{{'$1', '$2'}}],
-   MatchFunction = {MatchHead, MatchConditions, MatchBody},
-   MatchExpression = [MatchFunction],
-   ASPs = mnesia:dirty_select(m3ua_as, MatchExpression),
+	MatchFunction = {MatchHead, MatchConditions, MatchBody},
+	MatchExpression = [MatchFunction],
+	ASPs = mnesia:dirty_select(m3ua_as, MatchExpression),
 	F2 = fun(F, [{{_, [{PC, _, _} | _], _}, L1} | T], Acc) ->
 				L2 = [A#m3ua_as_asp.fsm || A <- L1, A#m3ua_as_asp.state == active],
 				F(F, T, [[{PC, A} || A <- L2] | Acc]);
