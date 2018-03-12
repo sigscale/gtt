@@ -117,20 +117,39 @@ erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 
 %% @hidden
 log(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData) ->
-	#sccp_unitdata{called_party = #party_address{ri = CldRI,
-			ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
-			nai = CldNAI, gt = CldGT},
-			calling_party = #party_address{ri = ClgRI, ssn = ClgSSN,
-			translation_type = ClgTT, numbering_plan = ClgNP,
-			nai = ClgNAI, gt = ClgGT},
-			data = _Payload} = sccp_codec:sccp(UnitData),
-	error_logger:info_report(["MTP-TRANSFER request",
-			{fsm, Fsm}, {ep, EP}, {assoc, Assoc},
-			{stream, Stream}, {rc, RC}, {opc, OPC},
-			{dpc, DPC}, {sls, SLS}, {sio, SIO},
-			{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
-			{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
-			{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]).
+	case sccp_codec:sccp(UnitData) of
+		#sccp_unitdata{called_party = #party_address{ri = CldRI,
+				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
+				nai = CldNAI, gt = CldGT},
+				calling_party = #party_address{ri = ClgRI, ssn = ClgSSN,
+				translation_type = ClgTT, numbering_plan = ClgNP,
+				nai = ClgNAI, gt = ClgGT}, data = _Payload} ->
+			error_logger:info_report(["MTP-TRANSFER request",
+					{fsm, Fsm}, {ep, EP}, {assoc, Assoc},
+					{stream, Stream}, {rc, RC}, {opc, OPC},
+					{dpc, DPC}, {sls, SLS}, {sio, SIO},
+					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
+					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
+					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
+		#sccp_unitdata_service{type = Type,
+            return_cause = ReturnCause,
+				called_party = #party_address{ri = CldRI,
+				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
+				nai = CldNAI, gt = CldGT},
+				calling_party = #party_address{ri = ClgRI, ssn = ClgSSN,
+				translation_type = ClgTT, numbering_plan = ClgNP,
+				nai = ClgNAI, gt = ClgGT}, data = _Payload} ->
+			error_logger:info_report(["MTP-TRANSFER request",
+					{fsm, Fsm}, {ep, EP}, {assoc, Assoc},
+					{stream, Stream}, {rc, RC}, {opc, OPC},
+					{dpc, DPC}, {sls, SLS}, {sio, SIO},
+					{type, Type}, {return_cause, ReturnCause},
+					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
+					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
+					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
+		Other ->
+erlang:display({?MODULE, ?LINE, Other})
+	end.
 
 -spec pause(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
