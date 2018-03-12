@@ -89,7 +89,7 @@ erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 	F1 = fun({NA, Keys, Mode}) ->
 				{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
 	end,
-	MatchConditions = lists:map(F1, ASs),
+	MatchConditions = [list_to_tuple(['or' | lists:map(F1, ASs)])],
 	MatchBody = [{{'$1', '$2'}}],
 	MatchFunction = {MatchHead, MatchConditions, MatchBody},
 	MatchExpression = [MatchFunction],
