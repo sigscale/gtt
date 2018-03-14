@@ -397,7 +397,7 @@ start_as1(AS, N, [H | T]) ->
 			start_as2(EP, AS, N, T);
 		{atomic, []} ->
 			error_logger:error_report(["Endpoint not found",
-					{ep, H}, {reason, epunavilable},
+					{ep, H}, {reason, epunavailable},
 					{module, ?MODULE}]),
 			start_as1(AS, N, T);
 		{aborted, Reason} ->
