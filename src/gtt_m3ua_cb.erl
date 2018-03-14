@@ -23,8 +23,9 @@
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
 %% m3ua_asp_fsm callbacks
--export([init/4, transfer/11, pause/7, resume/7, status/7, register/7,
-		asp_up/4, asp_down/4, asp_active/4, asp_inactive/4, terminate/5]).
+-export([init/4, transfer/11, pause/7, resume/7, status/7,
+		register/7, asp_up/4, asp_down/4, asp_active/4,
+		asp_inactive/4, notify/7, terminate/5]).
 
 -include("gtt.hrl").
 -include_lib("sccp/include/sccp.hrl").
@@ -285,6 +286,23 @@ erlang:display({?MODULE, ?LINE, asp_active, _Fsm, _EP, _Assoc, State}),
 %%		processed an incoming ASP Inactive message from its peer.
 asp_inactive(_Fsm, _EP, _Assoc, State) ->
 erlang:display({?MODULE, ?LINE, asp_inactive, _Fsm, _EP, _Assoc, State}),
+	{ok, State}.
+
+-spec notify(Fsm, EP, Assoc, RC, Status, AspID, State) -> Result
+	when
+		Fsm :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		RC :: undefined | pos_integer(),
+		Status :: as_inactive | as_active | as_pending
+				| insufficient_asp_active | alternate_asp_active
+				| asp_failure,
+		AspID :: undefined | pos_integer(),
+		State :: term(),
+		Result :: {ok, State}.
+%% @doc Called when SGP reports Application Server (AS) state changes.
+notify(_Fsm, _EP, _Assoc, _RC, _Status, _AspID, State) ->
+erlang:display({?MODULE, ?LINE, notify, _Fsm, _EP, _Assoc, _RC, _Status, _AspID, State}),
 	{ok, State}.
 
 -spec terminate(Fsm, EP, Assoc, Reason, State) -> Result
