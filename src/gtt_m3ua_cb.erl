@@ -23,8 +23,8 @@
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
 %% m3ua_asp_fsm callbacks
--export([init/4, transfer/11, pause/7, resume/7, status/7,
-		register/7, asp_up/4, asp_down/4, asp_active/4, asp_inactive/4]).
+-export([init/4, transfer/11, pause/7, resume/7, status/7, register/7,
+		asp_up/4, asp_down/4, asp_active/4, asp_inactive/4, terminate/5]).
 
 -include("gtt.hrl").
 -include_lib("sccp/include/sccp.hrl").
@@ -288,6 +288,19 @@ erlang:display({?MODULE, ?LINE, asp_active, _Fsm, _EP, _Assoc, State}),
 asp_inactive(_Fsm, _EP, _Assoc, State) ->
 erlang:display({?MODULE, ?LINE, asp_inactive, _Fsm, _EP, _Assoc, State}),
 	{ok, State}.
+
+-spec terminate(Fsm, EP, Assoc, Reason, State) -> Result
+	when
+		Fsm :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		Reason :: term(),
+		State :: term(),
+		Result :: any().
+%% @doc Called when ASP terminates.
+terminate(_Fsm, _EP, _Assoc, _Reason, _State) ->
+erlang:display({?MODULE, ?LINE, terminate, _Fsm, _EP, _Assoc, _Reason, _State}),
+	ok.
 
 %%----------------------------------------------------------------------
 %%  internal functions
