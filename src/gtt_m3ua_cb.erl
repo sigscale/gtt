@@ -83,9 +83,7 @@ transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData, State)
 %% @hidden
 transfer1(OPC, SLS, SIO, UnitData, State, ASs) ->
 erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
-	MatchHead = #m3ua_as{routing_key = '$1', name = '_',
-			min_asp = '_', max_asp = '_', state = active, asp = '$2'},
-	% match specs require "double tuple parenthesis"
+	MatchHead = match_head(),
 	F1 = fun({NA, Keys, Mode}) ->
 				{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
 	end,
@@ -93,7 +91,7 @@ erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 	MatchBody = [{{'$1', '$2'}}],
 	MatchFunction = {MatchHead, MatchConditions, MatchBody},
 	MatchExpression = [MatchFunction],
-	ASPs = mnesia:dirty_select(m3ua_as, MatchExpression),
+	ASPs = select(MatchExpression),
 	F2 = fun(F, [{{_, [{PC, _, _} | _], _}, L1} | T], Acc) ->
 				L2 = [A#m3ua_as_asp.fsm || A <- L1, A#m3ua_as_asp.state == active],
 				F(F, T, [[{PC, A} || A <- L2] | Acc]);
@@ -305,4 +303,13 @@ erlang:display({?MODULE, ?LINE, terminate, _Fsm, _EP, _Assoc, _Reason, _State}),
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+
+-dialyzer([{nowarn_function, [match_head/0]}, no_contracts]).
+match_head() ->
+	#m3ua_as{routing_key = '$1', name = '_',
+			min_asp = '_', max_asp = '_', state = active, asp = '$2'}.
+
+-dialyzer([{nowarn_function, [select/1]}, no_return]).
+select(MatchExpression) ->
+	mnesia:dirty_select(m3ua_as, MatchExpression).
 
