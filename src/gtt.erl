@@ -301,11 +301,11 @@ start_ep(EpName) ->
 			{error, Reason}
 	end.
 %% @hidden
-start_ep1(#gtt_ep{sctp_role = SctpRole, m3ua_role = M3uaRole,
-		callback = Callback, local = {LocalAddr, LocalPort, Options},
-		node = Node} = EP) ->
-	NewOptions = [{sctp_role, SctpRole}, {m3ua_role, M3uaRole},
-			{ip, LocalAddr}] ++ Options,
+start_ep1(#gtt_ep{name = Name, sctp_role = SctpRole,
+		m3ua_role = M3uaRole, callback = Callback,
+		local = {LocalAddr, LocalPort, Options}, node = Node} = EP) ->
+	NewOptions = [{name, Name}, {sctp_role, SctpRole},
+			{m3ua_role, M3uaRole}, {ip, LocalAddr}] ++ Options,
 	case catch start_ep2(Node, LocalPort, NewOptions, Callback) of
 		{ok, Pid} ->
 			F = fun() -> mnesia:write(EP#gtt_ep{ep = Pid}) end,
