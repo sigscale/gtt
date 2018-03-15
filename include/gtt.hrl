@@ -18,27 +18,29 @@
 
 -include_lib("m3ua/include/m3ua.hrl").
 
+-type ep_ref() :: term().
+-type as_ref() :: term().
+
 -record(gtt_ep,
-		{name :: term(),
+		{name :: ep_ref(),
 		sctp_role :: client | server,
 		m3ua_role :: sgp | asp,
 		callback :: atom() | #m3ua_fsm_cb{},
 		local :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
 		remote :: undefined | {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
+		as = [] :: [AS :: as_ref()],
 		node :: node(),
 		ep :: pid() | undefined}).
 
 -record(gtt_as,
-		{name :: term(),
+		{name :: as_ref(),
 		role :: as | sg,
 		na :: pos_integer(),
 		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
 		mode :: override | loadshare | broadcast,
 		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
-		node :: node(),
-		fsms = [] :: [{EP :: pid(), Assoc :: pos_integer()}],
-		eps = []:: [EPRef :: term()]}).
+		fsm = [] :: [{EP :: pid(), Assoc :: pos_integer()}]}).
 
 -record(gtt_pc,
 		{dpc :: pos_integer() | undefined,

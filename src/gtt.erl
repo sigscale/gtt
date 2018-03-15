@@ -20,9 +20,9 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_ep/6, add_ep/7, get_ep/0, find_ep/1,
+-export([add_ep/7, add_ep/8, get_ep/0, find_ep/1,
 		start_ep/1, stat_ep/1, stat_ep/2]).
--export([add_as/8, add_as/9, get_as/0, find_as/1, start_as/1]).
+-export([add_as/7, get_as/0, find_as/1, start_as/1]).
 -export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
 
 -include("gtt.hrl").
@@ -31,12 +31,10 @@
 %%  The gtt public API
 %%----------------------------------------------------------------------
 
--type ep_ref() :: term().
--type as_ref() :: term().
 -export_type([ep_ref/0, as_ref/0]).
 
 -spec add_ep(Name, Local, Remote,
-		SctpRole, M3uaRole, Callback) -> Result
+		SctpRole, M3uaRole, Callback, ApplicationServers) -> Result
 	when
 		Name :: ep_ref(),
 		Local :: {Address, Port, Options},
@@ -44,6 +42,7 @@
 		SctpRole :: client | server,
 		M3uaRole :: sgp | asp,
 		Callback :: atom() | #m3ua_fsm_cb{},
+		ApplicationServers :: [as_ref()],
 		Port :: inet:port_number(),
 		Address :: inet:ip_address(),
 		Options :: [m3ua:option()],
@@ -51,11 +50,13 @@
 		EP :: #gtt_ep{},
 		Reason :: term().
 %% @equiv add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback, node())
-add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback) ->
-	add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback, node()).
+add_ep(Name, Local, Remote, SctpRole, M3uaRole,
+		Callback, ApplicationServers) ->
+	add_ep(Name, Local, Remote, SctpRole, M3uaRole,
+			Callback, ApplicationServers, node()).
 
 -spec add_ep(Name, Local, Remote,
-		SctpRole, M3uaRole, Callback, Node) -> Result
+		SctpRole, M3uaRole, Callback, ApplicationServers, Node) -> Result
 	when
 		Name :: ep_ref(),
 		Local :: {Address, Port, Options},
@@ -63,6 +64,7 @@ add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback) ->
 		SctpRole :: client | server,
 		M3uaRole :: sgp | asp,
 		Callback :: atom() | #m3ua_fsm_cb{},
+		ApplicationServers :: [as_ref()],
 		Node :: node(),
 		Port :: inet:port_number(),
 		Address :: inet:ip_address(),
@@ -71,17 +73,18 @@ add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback) ->
 		EP :: #gtt_ep{},
 		Reason :: term().
 %% @doc Create an SCTP endpoint specification.
-add_ep(Name, {LocalAddr, LocalPort, _} = Local,
-		Remote, SctpRole, M3uaRole, Callback, Node) when
+add_ep(Name, {LocalAddr, LocalPort, _} = Local, Remote,
+		SctpRole, M3uaRole, Callback, ApplicationServers, Node) when
 		is_tuple(LocalAddr), is_integer(LocalPort),
 		((is_tuple(Remote)) orelse (Remote == undefined)),
 		((is_tuple(Callback)) orelse (is_atom(Callback))),
 		((SctpRole == client) orelse (SctpRole == server)),
-		((M3uaRole == sgp) orelse (M3uaRole == asp))->
+		((M3uaRole == sgp) orelse (M3uaRole == asp)),
+		is_list(ApplicationServers) ->
 	F = fun() ->
 			GttEP = #gtt_ep{name = Name, local = Local,
 				remote = Remote, sctp_role = SctpRole, m3ua_role = M3uaRole,
-				callback = Callback, node = Node},
+				callback = Callback, as = ApplicationServers, node = Node},
 			mnesia:write(gtt_ep, GttEP, write),
 			GttEP
 	end,
@@ -124,7 +127,7 @@ find_ep(EpName) ->
 			{error, Reason}
 	end.
 
--spec add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, EPs) -> Result
+-spec add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp) -> Result
 	when
 		Name :: as_ref(),
 		Role :: as | sg,
@@ -133,7 +136,6 @@ find_ep(EpName) ->
 		Mode :: override | loadshare | broadcast,
 		MinAsp :: pos_integer(),
 		MaxAsp :: pos_integer(),
-		EPs :: [ep_ref()],
 		Result :: {ok, AS} | {error, Reason},
 		Key :: {DPC, SIs, OPCs},
 		DPC :: pos_integer(),
@@ -144,39 +146,14 @@ find_ep(EpName) ->
 		AS :: #gtt_as{},
 		Reason :: term().
 %% @doc Create new Application Server specification.
-add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, EPs) ->
-	add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, node(), EPs).
-
--spec add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs) -> Result
-	when
-		Name :: as_ref(),
-		Role :: as | sg,
-		NA :: pos_integer(),
-		Keys :: [Key],
-		Mode :: override | loadshare | broadcast,
-		MinAsp :: pos_integer(),
-		MaxAsp :: pos_integer(),
-		Node :: node(),
-		EPs :: [ep_ref()],
-		Result :: {ok, AS} | {error, Reason},
-		Key :: {DPC, SIs, OPCs},
-		DPC :: pos_integer(),
-		SIs :: [SI],
-		OPCs :: [OPC],
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
-		AS :: #gtt_as{},
-		Reason :: term().
-%% @doc Create new Application Server specification.
-add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp, Node, EPs)
+add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp)
 		when is_integer(NA), is_list(Keys), is_integer(MinAsp),
 		is_integer(MaxAsp), ((Mode == override) orelse (Mode == loadshare)
 		orelse (Mode == broadcast)), ((Role == as) orelse (Role == sg)) ->
 	F = fun() ->
 			GttAs = #gtt_as{name = Name, role = Role,
 					na = NA, keys = Keys, mode = Mode,
-					min_asp = MinAsp, max_asp = MaxAsp,
-					node = Node, eps = EPs},
+					min_asp = MinAsp, max_asp = MaxAsp},
 			mnesia:write(gtt_as, GttAs, write),
 			GttAs
 	end,
@@ -364,8 +341,8 @@ start_ep2(Node, Port, Options, Callback) ->
 start_as(AsName) ->
 	F1 = fun() -> mnesia:read(gtt_as, AsName, read) end,
 	case mnesia:transaction(F1) of
-		{atomic, [#gtt_as{max_asp = Max, eps = EpRefs} = AS]} ->
-			case start_as1(AS, Max, EpRefs) of
+		{atomic, [#gtt_as{max_asp = Max} = AS]} ->
+			case start_as1(AS, Max, []) of
 				AS ->
 					ok;
 				#gtt_as{} = NewAS ->
@@ -406,12 +383,12 @@ start_as1(AS, N, [H | T]) ->
 %% @hidden
 start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
 		remote = {Address, Port, Options}} = EP,
-		#gtt_as{fsms = Fsms} = AS, N, T) when Node == node() ->
+		#gtt_as{fsm = Fsms} = AS, N, T) when Node == node() ->
 	case m3ua:sctp_establish(Pid, Address, Port, Options) of
 		{ok, Assoc} ->
 			case start_as3(EP, Assoc, AS) of
 				ok ->
-					NewAS = AS#gtt_as{fsms = [{Pid, Assoc} | Fsms]},
+					NewAS = AS#gtt_as{fsm = [{Pid, Assoc} | Fsms]},
 					start_as1(NewAS, N - 1, T);
 				{error, _Reason} ->
 					%% @todo close connection!
@@ -425,12 +402,12 @@ start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
 	end;
 start_as2(#gtt_ep{name = EpName, ep = Pid, node = Node,
 		remote = {Address, Port, Options}} = EP,
-		#gtt_as{fsms = Fsms} = AS, N, T) ->
+		#gtt_as{fsm = Fsms} = AS, N, T) ->
 	case rpc:call(Node, m3ua, sctp_establish, [Pid, Address, Port, Options]) of
 		{ok, Assoc} ->
 			case start_as3(EP, Assoc, AS) of
 				ok ->
-					NewAS = AS#gtt_as{fsms = [{Pid, Assoc} | Fsms]},
+					NewAS = AS#gtt_as{fsm = [{Pid, Assoc} | Fsms]},
 					start_as1(NewAS, N - 1, T);
 				{error, _Reason} ->
 					%% @todo close connection!
