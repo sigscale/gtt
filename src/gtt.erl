@@ -308,10 +308,13 @@ start_ep1(#gtt_ep{name = Name, sctp_role = SctpRole,
 			{m3ua_role, M3uaRole}, {ip, LocalAddr}] ++ Options,
 	case catch start_ep2(Node, LocalPort, NewOptions, Callback) of
 		{ok, Pid} ->
-			F = fun() -> mnesia:write(EP#gtt_ep{ep = Pid}) end,
+			NewEP = EP#gtt_ep{ep = Pid},
+			F = fun() -> mnesia:write(NewEP) end,
 			case mnesia:transaction(F) of
-				{atomic, ok} ->
+				{atomic, ok} when SctpRole == server ->
 					ok;
+				{atomic, ok} when SctpRole == client ->
+					start_ep3(NewEP);
 				{aborted, Reason} ->
 					{error, Reason}
 			end;
@@ -330,6 +333,14 @@ start_ep2(Node, Port, Options, Callback) ->
 		{error, Reason} ->
 			{error, Reason};
 		{badrpc, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start_ep3(#gtt_ep{ep = EP, remote = {Address, Port, Options}}) ->
+	case m3ua:sctp_establish(EP, Address, Port, Options) of
+		{ok, _Assoc} ->
+			ok;
+		{error, Reason} ->
 			{error, Reason}
 	end.
 
