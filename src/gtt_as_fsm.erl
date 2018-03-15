@@ -44,6 +44,8 @@
 		max :: pos_integer()}).
 -type statedata() :: #statedata{}.
 
+-include("gtt.hrl").
+
 %%----------------------------------------------------------------------
 %%  The gtt_as_fsm API
 %%----------------------------------------------------------------------
@@ -81,8 +83,14 @@ init([Name, Role, NA, Keys, Mode, Min, Max]) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-inactive(timeout, #statedata{} = StateData) ->
-	{next_state, initial, StateData}.
+inactive({'M-ASP_UP', EP, Assoc},
+		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
+		{ok, _RoutingContext} ->
+			{next_state, inactive, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
 -spec active(Event, StateData) -> Result
 	when
@@ -97,8 +105,14 @@ inactive(timeout, #statedata{} = StateData) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-active(timeout, #statedata{} = StateData) ->
-	{next_state, initial, StateData}.
+active({'M-ASP_UP', EP, Assoc},
+		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
+		{ok, _RoutingContext} ->
+			{next_state, active, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
 -spec pending(Event, StateData) -> Result
 	when
@@ -114,7 +128,7 @@ active(timeout, #statedata{} = StateData) ->
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 pending(timeout, #statedata{} = StateData) ->
-	{next_state, initial, StateData}.
+	{next_state, pending, StateData}.
 
 -spec handle_event(Event, StateName, StateData) -> Result
 	when

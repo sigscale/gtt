@@ -105,18 +105,19 @@ start5(TopSup, AsFsmSup, [AS | T]) ->
 	start6(TopSup, AsFsmSup, mnesia:transaction(F), T);
 start5(TopSup, _, []) ->
 	{ok, TopSup}.
-start6(TopSup, AsFsmSup, {atomic, [#{name = Name, role = Role, na = NA,
-		keys = Keys, mode = Mode, min_asp = Min, max_asp = Max}]}, T) ->
+%% @hidden
+start6(TopSup, AsFsmSup, {atomic, [#gtt_as{name = Name, role = Role,
+		na = NA, keys = Keys, mode = Mode, min_asp = Min, max_asp = Max}]}, T) ->
 	StartMod = gtt_as_fsm,
 	StartArgs = [Name, Role, NA, Keys, Mode, Min, Max],
 	StartOpts = [],
 	case supervisor:start_child(AsFsmSup,
-			[{global, AS}, StartMod, StartArgs, StartOpts]) of
+			[{global, Name}, StartMod, StartArgs, StartOpts]) of
 		{ok, _Child} ->
 			start5(TopSup, AsFsmSup, T);
 		{error, Reason} ->
 			error_logger:error_report(["Failed to start Application Server",
-					{as, AS}, {reason, Reason}, {module, ?MODULE}]),
+					{as, Name}, {reason, Reason}, {module, ?MODULE}]),
 			start5(TopSup, AsFsmSup, T)
 	end;
 start6(_, _, {aborted, Reason}, _) ->
