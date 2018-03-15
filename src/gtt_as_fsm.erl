@@ -89,7 +89,7 @@ inactive({'M-ASP_UP', Node, EP, Assoc},
 		{ok, _RoutingContext} ->
 			{next_state, inactive, StateData};
 		{badrpc, _} = Reason->
-			{stop, Reason, StateData}
+			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
