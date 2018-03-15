@@ -83,11 +83,13 @@ init([Name, Role, NA, Keys, Mode, Min, Max]) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-inactive({'M-ASP_UP', EP, Assoc},
+inactive({'M-ASP_UP', Node, EP, Assoc},
 		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
+	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
 		{ok, _RoutingContext} ->
 			{next_state, inactive, StateData};
+		{badrpc, _} = Reason->
+			{stop, Reason, StateData}
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
