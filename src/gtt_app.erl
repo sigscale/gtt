@@ -101,8 +101,14 @@ start4(TopSup) ->
 	end.
 %% @hidden
 start5(TopSup, AsFsmSup, [AS | T]) ->
+	F = fun() -> mnesia:read(gtt_as, AS, read) end,
+	start6(TopSup, AsFsmSup, mnesia:transaction(F), T);
+start5(TopSup, _, []) ->
+	{ok, TopSup}.
+start6(TopSup, AsFsmSup, {atomic, [#{name = Name, role = Role, na = NA,
+		keys = Keys, mode = Mode, min_asp = Min, max_asp = Max}]}, T) ->
 	StartMod = gtt_as_fsm,
-	StartArgs = [],
+	StartArgs = [Name, Role, NA, Keys, Mode, Min, Max],
 	StartOpts = [],
 	case supervisor:start_child(AsFsmSup,
 			[{global, AS}, StartMod, StartArgs, StartOpts]) of
@@ -113,8 +119,8 @@ start5(TopSup, AsFsmSup, [AS | T]) ->
 					{as, AS}, {reason, Reason}, {module, ?MODULE}]),
 			start5(TopSup, AsFsmSup, T)
 	end;
-start5(TopSup, _, []) ->
-	{ok, TopSup}.
+start6(_, _, {aborted, Reason}, _) ->
+	{error, Reason}.
 
 -spec start_phase(Phase :: atom(), StartType :: start_type(),
 		PhaseArgs :: term()) -> ok | {error, Reason :: term()}.

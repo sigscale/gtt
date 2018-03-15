@@ -35,7 +35,13 @@
 			terminate/3, code_change/4]).
 
 -record(statedata,
-		{}).
+		{name :: as_ref(),
+		role :: as | sg,
+		na :: pos_integer(),
+		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
+		mode :: override | loadshare | broadcast,
+		min :: pos_integer(),
+		max :: pos_integer()}).
 -type statedata() :: #statedata{}.
 
 %%----------------------------------------------------------------------
@@ -58,8 +64,9 @@
 %% @see //stdlib/gen_fsm:init/1
 %% @private
 %%
-init([]) ->
-	{ok, inactive, #statedata{}}.
+init([Name, Role, NA, Keys, Mode, Min, Max]) ->
+	{ok, inactive, #statedata{name = Name, role = Role,
+			na = NA, keys = Keys, mode = Mode, min = Min, max = Max}}.
 
 -spec inactive(Event, StateData) -> Result
 	when
