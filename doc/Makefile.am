@@ -6,6 +6,8 @@ modhtml = gtt.html \
 		gtt_app.html \
 		gtt_sup.html \
 		gtt_server.html \
+		gtt_as_fsm_sup.html \
+		gtt_as_fsm.html \
 		gtt_m3ua_cb.html
 
 doc_DATA = overview.edoc $(modhtml) \

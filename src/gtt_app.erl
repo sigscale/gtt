@@ -54,43 +54,67 @@ start(normal = _StartType, _Args) ->
 	case mnesia:wait_for_tables(Tables, 60000) of
 		ok ->
 			start1();
-		{timeout, _} ->
-			error_logger:error_report(["gtt application failed to start",
-						{reason, timeout}, {module, ?MODULE}]);
+		{timeout, _} = Reason ->
+			{error, Reason};
 		{error, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
 start1() ->
+	case supervisor:start_link(gtt_sup, []) of
+		{ok, TopSup} ->
+			start2(TopSup);
+		{error, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start2(TopSup) ->
 	F = fun() -> mnesia:all_keys(gtt_ep) end,
 	case mnesia:transaction(F) of
 		{atomic, EndPoints} ->
-			start2(EndPoints);
+			start3(TopSup, EndPoints);
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
-start2([EP | T]) ->
+start3(TopSup, [EP | T]) ->
 	case gtt:start_ep(EP) of
 		ok ->
-			start2(T);
+			start3(TopSup, T);
 		{error, Reason} ->
-			error_logger:error_report(["failed to start SCTP endpoint",
+			error_logger:error_report(["Failed to start SCTP endpoint",
 					{endpoint, EP}, {reason, Reason}, {module, ?MODULE}]),
-			start2(T)
+			start3(TopSup, T)
 	end;
-start2([]) ->
-	start3().
+start3(TopSup, []) ->
+	start4(TopSup).
 %% @hidden
-start3() ->
-	case supervisor:start_link(gtt_sup, []) of
-		{ok, GttSup} ->
-			{ok, GttSup};
-		{error, Reason} ->
-			error_logger:error_report(["gtt application failed to start",
-					{reason, Reason}, {module, ?MODULE}]),
+start4(TopSup) ->
+	F = fun() -> mnesia:all_keys(gtt_as) end,
+	case mnesia:transaction(F) of
+		{atomic, ASs} ->
+			Children = supervisor:which_children(TopSup),
+			{_, AsFsmSup, _, _} = lists:keyfind(gtt_as_fsm_sup, 1, Children),
+			start5(TopSup, AsFsmSup, ASs);
+		{aborted, Reason} ->
 			{error, Reason}
 	end.
+%% @hidden
+start5(TopSup, AsFsmSup, [AS | T]) ->
+	StartMod = gtt_as_fsm,
+	StartArgs = [],
+	StartOpts = [],
+	case supervisor:start_child(AsFsmSup,
+			[{global, AS}, StartMod, StartArgs, StartOpts]) of
+		{ok, _Child} ->
+			start5(TopSup, AsFsmSup, T);
+		{error, Reason} ->
+			error_logger:error_report(["Failed to start Application Server",
+					{as, AS}, {reason, Reason}, {module, ?MODULE}]),
+			start5(TopSup, AsFsmSup, T)
+	end;
+start5(TopSup, _, []) ->
+	{ok, TopSup}.
 
 -spec start_phase(Phase :: atom(), StartType :: start_type(),
 		PhaseArgs :: term()) -> ok | {error, Reason :: term()}.

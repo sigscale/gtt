@@ -1,4 +1,4 @@
-%%% gtt_sup.erl
+%%% gtt_as_fsm_sup.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2015-2018 SigScale Global Inc.
 %%% @end
@@ -16,7 +16,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @docfile "{@docsrc supervision.edoc}"
 %%%
--module(gtt_sup).
+-module(gtt_as_fsm_sup).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 -behaviour(supervisor).
@@ -36,36 +36,12 @@
 %% @private
 %%
 init([] = _Args) ->
-	ChildSpecs = [server(gtt_server, [self()]),
-			supervisor(gtt_as_fsm_sup, [])],
-	{ok, {{one_for_all, 1, 5}, ChildSpecs}}.
+	StartMod = gtt_as_fsm,
+	StartFunc = {gen_fsm, start_link, []},
+	ChildSpec = {StartMod, StartFunc, transient, 4000, worker, [StartMod]},
+	{ok, {{simple_one_for_one, 10, 60}, [ChildSpec]}}.
 
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
-
--spec server(StartMod :: atom(), Args :: [term()]) ->
-	supervisor:child_spec().
-%% @doc Build a supervisor child specification for a
-%% 	{@link //stdlib/gen_server. gen_server} behaviour.
-%% @private
-%%
-server(StartMod, Args) ->
-	StartArgs = [{local, gtt}, StartMod, Args, []],
-	StartFunc = {gen_server, start_link, StartArgs},
-	{StartMod, StartFunc, permanent, 4000, worker, [StartMod]}.
-
--spec supervisor(StartMod, Args) -> Result
-	when
-		StartMod :: atom(),
-		Args :: [term()],
-		Result :: supervisor:child_spec().
-%% @doc Build a supervisor child specification for a
-%% 	{@link //stdlib/supervisor. supervisor} behaviour.
-%% @private
-%%
-supervisor(StartMod, Args) ->
-	StartArgs = [StartMod, Args],
-	StartFunc = {supervisor, start_link, StartArgs},
-	{StartMod, StartFunc, permanent, infinity, supervisor, [StartMod]}.
 

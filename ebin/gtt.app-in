@@ -6,6 +6,8 @@
 				gtt_app,
 				gtt_sup,
 				gtt_server,
+				gtt_as_fsm_sup,
+				gtt_as_fsm,
 				gtt_m3ua_cb]},
 		{registered, [gtt]},
 		{applications, [kernel, stdlib, m3ua, sccp]},
