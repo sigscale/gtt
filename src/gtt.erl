@@ -314,7 +314,7 @@ start_ep1(#gtt_ep{name = Name, sctp_role = SctpRole,
 				{atomic, ok} when SctpRole == server ->
 					ok;
 				{atomic, ok} when SctpRole == client ->
-					start_ep3(NewEP);
+					start_ep3(Node, NewEP);
 				{aborted, Reason} ->
 					{error, Reason}
 			end;
@@ -332,14 +332,29 @@ start_ep2(Node, Port, Options, Callback) ->
 			{ok, EP};
 		{error, Reason} ->
 			{error, Reason};
-		{badrpc, Reason} ->
+		{badrpc, _} = Reason ->
 			{error, Reason}
 	end.
 %% @hidden
-start_ep3(#gtt_ep{ep = EP, remote = {Address, Port, Options}}) ->
+start_ep3(Node, #gtt_ep{ep = EP, remote = {Address, Port, Options}})
+		when Node == node() ->
 	case m3ua:sctp_establish(EP, Address, Port, Options) of
-		{ok, _Assoc} ->
-			ok;
+		{ok, Assoc} ->
+			m3ua:asp_up(EP, Assoc);
+		{error, Reason} ->
+			{error, Reason}
+	end;
+start_ep3(Node, #gtt_ep{ep = EP, remote = {Address, Port, Options}}) ->
+	case rpc:call(Node, m3ua, sctp_establish, [EP, Address, Port, Options]) of
+		{ok, Assoc} ->
+			case rpc:call(Node, m3ua, asp_up, [EP, Assoc]) of
+				ok ->
+					ok;
+				{badrpc, _} = Reason ->
+					{error, Reason};
+				{error, Reason} ->
+					{error, Reason}
+			end;
 		{error, Reason} ->
 			{error, Reason}
 	end.
@@ -363,7 +378,7 @@ stat_ep(EpRef) ->
 					{ok, OptionValues};
 				{error, Reason} ->
 					{error, Reason};
-				{badrpc, Reason} ->
+				{badrpc, _} = Reason ->
 					{error, Reason}
 			end;
 		{error, Reason} ->
@@ -390,7 +405,7 @@ stat_ep(EpRef, Options) when is_list(Options) ->
 					{ok, OptionValues};
 				{error, Reason} ->
 					{error, Reason};
-				{badrpc, Reason} ->
+				{badrpc, _} = Reason ->
 					{error, Reason}
 			end;
 		{error, Reason} ->
