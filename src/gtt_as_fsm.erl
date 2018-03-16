@@ -112,6 +112,17 @@ down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
+inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData) ->
+	case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
+		ok ->
+			{next_state, inactive, StateData};
+		{badrpc, _} = Reason->
+			{stop, Reason, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+inactive({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_active, _AspID}, StateData) ->
+	{next_state, active, StateData};
 inactive({'M-ASP_UP', Node, EP, Assoc},
 		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
 	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
@@ -140,6 +151,10 @@ inactive({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
+active({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_inactive, _AspID}, StateData) ->
+	{next_state, inactive, StateData};
+active({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_pending, _AspID}, StateData) ->
+	{next_state, pending, StateData};
 active({'M-ASP_UP', EP, Assoc},
 		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
 	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
@@ -168,7 +183,9 @@ active({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
 %% @private
 pending(timeout, #statedata{} = StateData) ->
 	{next_state, down, StateData};
-pending({'M-ASP_ACTIVE', _Node, _EP, _Assoc}, StateData) ->
+pending({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_inactive, _AspID}, StateData) ->
+	{next_state, inactive, StateData};
+pending({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_active, _AspID}, StateData) ->
 	{next_state, active, StateData}.
 
 -spec handle_event(Event, StateName, StateData) -> Result
