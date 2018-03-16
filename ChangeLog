@@ -1,3 +1,9 @@
+2018-03-15  Vance Shipley <vances@sigscale.org>
+
+	* terminate and notify callback handlers
+	* endpoint names
+	* assign application servers to endpoints
+
 2018-03-08  Vance Shipley <vances@sigscale.org>
 
 	* consolidate as/sg tables
