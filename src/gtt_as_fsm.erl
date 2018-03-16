@@ -28,7 +28,7 @@
 -export([]).
 
 %% export the gtt_as_fsm state callbacks
--export([inactive/2, active/2, pending/2]).
+-export([down/2, inactive/2, active/2, pending/2]).
 
 %% export the call backs needed for gen_fsm behaviour
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3,
@@ -45,6 +45,9 @@
 -type statedata() :: #statedata{}.
 
 -include("gtt.hrl").
+
+%% Timer T(r)
+-define(Tr, 2000).
 
 %%----------------------------------------------------------------------
 %%  The gtt_as_fsm API
@@ -67,12 +70,38 @@
 %% @private
 %%
 init([Name, Role, NA, Keys, Mode, Min, Max]) ->
-	{ok, inactive, #statedata{name = Name, role = Role,
+	{ok, down, #statedata{name = Name, role = Role,
 			na = NA, keys = Keys, mode = Mode, min = Min, max = Max}}.
+
+-spec down(Event, StateData) -> Result
+	when
+		Event :: timeout | term(),
+		StateData :: statedata(),
+		Result :: {next_state, NextStateName :: atom(), NewStateData :: statedata()}
+		| {next_state, NextStateName :: atom(), NewStateData :: statedata(),
+		Timeout :: non_neg_integer() | infinity}
+		| {next_state, NextStateName :: atom(), NewStateData :: statedata(), hibernate}
+		| {stop, Reason :: normal | term(), NewStateData :: statedata()}.
+%% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
+%%		gen_fsm:send_event/2} in the <b>request</b> state.
+%% @@see //stdlib/gen_fsm:StateName/2
+%% @private
+down({'M-ASP_UP', Node, EP, Assoc},
+		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
+	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
+		{ok, _RoutingContext} ->
+			{next_state, inactive, StateData};
+		{badrpc, _} = Reason->
+			{stop, Reason, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
+	{next_state, inactive, StateData}.
 
 -spec inactive(Event, StateData) -> Result
 	when
-		Event :: timeout | term(), 
+		Event :: timeout | term(),
 		StateData :: statedata(),
 		Result :: {next_state, NextStateName :: atom(), NewStateData :: statedata()}
 		| {next_state, NextStateName :: atom(), NewStateData :: statedata(),
@@ -92,11 +121,15 @@ inactive({'M-ASP_UP', Node, EP, Assoc},
 			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
-	end.
+	end;
+inactive({'M-ASP_ACTIVE', _Node, _EP, _Assoc}, StateData) ->
+	{next_state, active, StateData};
+inactive({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
+	{next_state, down, StateData}.
 
 -spec active(Event, StateData) -> Result
 	when
-		Event :: timeout | term(), 
+		Event :: timeout | term(),
 		StateData :: statedata(),
 		Result :: {next_state, NextStateName :: atom(), NewStateData :: statedata()}
 		| {next_state, NextStateName :: atom(), NewStateData :: statedata(),
@@ -114,11 +147,15 @@ active({'M-ASP_UP', EP, Assoc},
 			{next_state, active, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
-	end.
+	end;
+active({'M-ASP_ACTIVE', _Node, _EP, _Assoc}, StateData) ->
+	{next_state, pending, StateData, ?Tr};
+active({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
+	{next_state, pending, StateData, ?Tr}.
 
 -spec pending(Event, StateData) -> Result
 	when
-		Event :: timeout | term(), 
+		Event :: timeout | term(),
 		StateData :: statedata(),
 		Result :: {next_state, NextStateName :: atom(), NewStateData :: statedata()}
 		| {next_state, NextStateName :: atom(), NewStateData :: statedata(),
@@ -130,11 +167,13 @@ active({'M-ASP_UP', EP, Assoc},
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 pending(timeout, #statedata{} = StateData) ->
-	{next_state, pending, StateData}.
+	{next_state, down, StateData};
+pending({'M-ASP_ACTIVE', _Node, _EP, _Assoc}, StateData) ->
+	{next_state, active, StateData}.
 
 -spec handle_event(Event, StateName, StateData) -> Result
 	when
-		Event :: term(), 
+		Event :: term(),
 		StateName :: atom(),
 		StateData :: statedata(),
 		Result :: {next_state, NextStateName :: atom(), NewStateData :: statedata()}
@@ -153,9 +192,9 @@ handle_event(_Event, StateName, StateData) ->
 
 -spec handle_sync_event(Event, From, StateName, StateData) -> Result
 	when
-		Event :: term(), 
+		Event :: term(),
 		From :: {Pid :: pid(), Tag :: term()},
-		StateName :: atom(), 
+		StateName :: atom(),
 		StateData :: statedata(),
 		Result :: {reply, Reply :: term(), NextStateName :: atom(), NewStateData :: statedata()}
 		| {reply, Reply :: term(), NextStateName :: atom(), NewStateData :: statedata(),
@@ -178,8 +217,8 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
 
 -spec handle_info(Info, StateName, StateData) -> Result
 	when
-		Info :: term(), 
-		StateName :: atom(), 
+		Info :: term(),
+		StateName :: atom(),
 		StateData :: statedata(),
 		Result :: {next_state, NextStateName :: atom(), NewStateData :: statedata()}
 		| {next_state, NextStateName :: atom(), NewStateData :: statedata(),
@@ -195,7 +234,7 @@ handle_info(_, StateName, StateData) ->
 
 -spec terminate(Reason, StateName, StateData) -> any()
 	when
-		Reason :: normal | shutdown | term(), 
+		Reason :: normal | shutdown | term(),
 		StateName :: atom(),
 		StateData :: statedata().
 %% @doc Cleanup and exit.
@@ -208,8 +247,8 @@ terminate(_Reason, _StateName, _StateData) ->
 -spec code_change(OldVsn, StateName, StateData, Extra) -> Result
 	when
 		OldVsn :: (Vsn :: term() | {down, Vsn :: term()}),
-		StateName :: atom(), 
-		StateData :: statedata(), 
+		StateName :: atom(),
+		StateData :: statedata(),
 		Extra :: term(),
 		Result :: {ok, NextStateName :: atom(), NewStateData :: statedata()}.
 %% @doc Update internal state data during a release upgrade&#047;downgrade.
