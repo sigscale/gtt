@@ -86,6 +86,16 @@ init([Name, Role, NA, Keys, Mode, Min, Max]) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
+down({'M-ASP_UP', Node, EP, Assoc},
+		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
+	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
+		{ok, _RoutingContext} ->
+			{next_state, inactive, StateData};
+		{badrpc, _} = Reason->
+			{stop, Reason, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
 	{next_state, inactive, StateData}.
 
