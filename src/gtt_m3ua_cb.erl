@@ -219,6 +219,25 @@ erlang:display({?MODULE, ?LINE, status, _Stream, _RC, _DPCs, State}),
 %%  @doc Called when Registration Response message with a
 %%		registration status of successful from its peer or
 %%		successfully processed an incoming Registration Request message.
+register(NA, Keys, TMT, #state{module = m3ua_sgp_fsm, fsm = Fsm} = State) ->
+erlang:display({?MODULE, ?LINE, register, NA, Keys, TMT, State}),
+	F = fun() ->
+				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, {NA, Keys,TMT}, write),
+				{_, ASP, L2} = lists:keytake(Fsm, #m3ua_as_asp.fsm, L1),
+				L3 = [ASP#m3ua_as_asp{state = active} | L2],
+				mnesia:write(AS#m3ua_as{state = active, asp = L3})
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			case gtt:add_key({NA, Keys, TMT}) of
+				ok ->
+					{ok, State};
+				{error, Reason} ->
+					{error, Reason}
+			end;
+		{aborted, Reason} ->
+			{error, Reason}
+	end;
 register(NA, Keys, TMT, State) ->
 erlang:display({?MODULE, ?LINE, register, NA, Keys, TMT, State}),
 	case gtt:add_key({NA, Keys, TMT}) of
