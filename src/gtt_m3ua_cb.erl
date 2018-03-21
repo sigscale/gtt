@@ -222,8 +222,7 @@ erlang:display({?MODULE, ?LINE, status, _Stream, _RC, _DPCs, State}),
 %%  @doc Called when Registration Response message with a
 %%		registration status of successful from its peer or
 %%		successfully processed an incoming Registration Request message.
-register(NA, Keys, TMT, #state{module = m3ua_sgp_fsm,
-		fsm = Fsm, rk = RKs} = State) ->
+register(NA, Keys, TMT, #state{fsm = Fsm, rk = RKs} = State) ->
 erlang:display({?MODULE, ?LINE, register, NA, Keys, TMT, State}),
 	RoutingKey = {NA, Keys,TMT},
 	F = fun() ->
@@ -241,14 +240,6 @@ erlang:display({?MODULE, ?LINE, register, NA, Keys, TMT, State}),
 					{error, Reason}
 			end;
 		{aborted, Reason} ->
-			{error, Reason}
-	end;
-register(NA, Keys, TMT, State) ->
-erlang:display({?MODULE, ?LINE, register, NA, Keys, TMT, State}),
-	case gtt:add_key({NA, Keys, TMT}) of
-		ok ->
-			{ok, State};
-		{error, Reason} ->
 			{error, Reason}
 	end.
 
