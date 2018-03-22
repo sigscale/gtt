@@ -77,11 +77,11 @@
 init([Name] = _Args) ->
 	F = fun() -> mnesia:read(gtt_ep, Name, read) end,
 	case mnesia:transaction(F) of
-		{atomic, #gtt_ep{name = Name,
+		{atomic, [#gtt_ep{name = Name,
 				sctp_role = SctpRole, m3ua_role = M3uaRole,
 				callback = CallBack, node = Node,
 				local = {LocalAddress, LocalPort, LocalOptions},
-				remote = Remote}} ->
+				remote = Remote}]} ->
 			{RemoteAddress, RemotePort, RemoteOptions} = case Remote of
 				{RA, RP, RO} ->
 					{RA, RP, RO};
@@ -122,10 +122,10 @@ opening(timeout, #statedata{node = Node,
 opening1({ok, EP}, #statedata{sctp_role = server} = StateData) ->
 	{next_state, listening, StateData#statedata{ep = EP}};
 opening1({ok, EP}, #statedata{sctp_role = client,
-		node = Node, ep = EP, remote_address = Address,
+		node = Node, remote_address = Address,
 		remote_port = Port, remote_options = Options} = StateData) ->
 	connect(Node, EP, Address, Port, Options),
-	{next_state, connecting, StateData, ?TIMEOUT};
+	{next_state, connecting, StateData#statedata{ep = EP}, ?TIMEOUT};
 opening1({error, Reason}, StateData) ->
 	{stop, Reason, StateData}.
 
