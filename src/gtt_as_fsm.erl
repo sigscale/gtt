@@ -69,9 +69,19 @@
 %% @see //stdlib/gen_fsm:init/1
 %% @private
 %%
-init([Name, Role, NA, Keys, Mode, Min, Max]) ->
-	{ok, down, #statedata{name = Name, role = Role,
-			na = NA, keys = Keys, mode = Mode, min = Min, max = Max}}.
+init([Name] = _Args) ->
+	F = fun() -> mnesia:read(gtt_as, Name, read) end,
+	case mnesia:transaction(F) of
+		{atomic, [#gtt_as{name = Name,
+				role = Role, na = NA, keys = Keys,
+				mode = Mode, min_asp = Min, max_asp = Max}]} ->
+			StateData = #statedata{name = Name,
+					role = Role, na = NA, keys = Keys,
+					mode = Mode, min = Min, max = Max},
+			{ok, down, StateData};
+		{aborted, Reason} ->
+			{stop, Reason}
+	end.
 
 -spec down(Event, StateData) -> Result
 	when
