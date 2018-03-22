@@ -20,10 +20,12 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_ep/7, add_ep/8, get_ep/0, find_ep/1,
-		start_ep/1, stat_ep/1, stat_ep/2]).
+%% export the public API
+-export([add_ep/7, add_ep/8, get_ep/0, find_ep/1, stat_ep/1, stat_ep/2]).
 -export([add_as/7, get_as/0, find_as/1]).
 -export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
+
+%% export the private API
 
 -include("gtt.hrl").
 
@@ -109,15 +111,15 @@ get_ep() ->
 			exit(Reason)
 	end.
 
--spec find_ep(EpName) -> Result
+-spec find_ep(Name) -> Result
 	when
-		EpName :: ep_ref(),
+		Name :: ep_ref(),
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
 %% @doc Search for an SCTP endpoint specification by name.
-find_ep(EpName) ->
-	F = fun() -> mnesia:read(gtt_ep, EpName, read) end,
+find_ep(Name) ->
+	F = fun() -> mnesia:read(gtt_ep, Name, read) end,
 	case mnesia:transaction(F) of
 		{atomic, []} ->
 			{error, not_found};
@@ -286,79 +288,6 @@ find_pc4(DPC, GTT) when is_integer(DPC) ->
 	MatchExpression = [MatchFunction],
 	mnesia:dirty_select(gtt_pc, MatchExpression).
 
--spec start_ep(EpName) -> Result
-	when
-		EpName :: term(),
-		Result :: ok | {error, Reason},
-		Reason :: term().
-%% @doc Start SCTP endpoint.
-start_ep(EpName) ->
-	F = fun() -> mnesia:read(gtt_ep, EpName, read) end,
-	case mnesia:transaction(F) of
-		{atomic, [EP]} ->
-			start_ep1(EP);
-		{aborted, Reason} ->
-			{error, Reason}
-	end.
-%% @hidden
-start_ep1(#gtt_ep{name = Name, sctp_role = SctpRole,
-		m3ua_role = M3uaRole, callback = Callback,
-		local = {LocalAddr, LocalPort, Options}, node = Node} = EP) ->
-	NewOptions = [{name, Name}, {sctp_role, SctpRole},
-			{m3ua_role, M3uaRole}, {ip, LocalAddr}] ++ Options,
-	case catch start_ep2(Node, LocalPort, NewOptions, Callback) of
-		{ok, Pid} ->
-			NewEP = EP#gtt_ep{ep = Pid},
-			F = fun() -> mnesia:write(NewEP) end,
-			case mnesia:transaction(F) of
-				{atomic, ok} when SctpRole == server ->
-					ok;
-				{atomic, ok} when SctpRole == client ->
-					start_ep3(Node, NewEP);
-				{aborted, Reason} ->
-					{error, Reason}
-			end;
-		{error, Reason} ->
-			{error, Reason};
-		{'EXIT', Reason} ->
-			{error, Reason}
-	end.
-%% @hidden
-start_ep2(Node, Port, Options, Callback) when Node == node() ->
-	m3ua:open(Port, Options, Callback);
-start_ep2(Node, Port, Options, Callback) ->
-	case rpc:call(Node, m3ua, open, [Port, Options, Callback]) of
-		{ok, EP} ->
-			{ok, EP};
-		{error, Reason} ->
-			{error, Reason};
-		{badrpc, _} = Reason ->
-			{error, Reason}
-	end.
-%% @hidden
-start_ep3(Node, #gtt_ep{ep = EP, remote = {Address, Port, Options}})
-		when Node == node() ->
-	case m3ua:sctp_establish(EP, Address, Port, Options) of
-		{ok, Assoc} ->
-			m3ua:asp_up(EP, Assoc);
-		{error, Reason} ->
-			{error, Reason}
-	end;
-start_ep3(Node, #gtt_ep{ep = EP, remote = {Address, Port, Options}}) ->
-	case rpc:call(Node, m3ua, sctp_establish, [EP, Address, Port, Options]) of
-		{ok, Assoc} ->
-			case rpc:call(Node, m3ua, asp_up, [EP, Assoc]) of
-				ok ->
-					ok;
-				{badrpc, _} = Reason ->
-					{error, Reason};
-				{error, Reason} ->
-					{error, Reason}
-			end;
-		{error, Reason} ->
-			{error, Reason}
-	end.
-
 -spec stat_ep(EpRef) -> Result
 	when
 		EpRef :: ep_ref(),
@@ -415,7 +344,6 @@ stat_ep(EpRef, Options) when is_list(Options) ->
 %%----------------------------------------------------------------------
 %%  The gtt private API
 %%----------------------------------------------------------------------
-
 
 %%----------------------------------------------------------------------
 %%  internal functions
