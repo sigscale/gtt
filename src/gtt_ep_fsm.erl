@@ -112,11 +112,11 @@ init([Name] = _Args) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-opening(timeout, #statedata{node = Node,
+opening(timeout, #statedata{name = Name, node = Node,
 		local_address = Address, local_port = Port,
 		local_options = Options1, callback = Callback,
 		sctp_role = SctpRole, m3ua_role = M3uaRole} = StateData) ->
-	Options2 = [{ip, Address}, {port, Port},
+	Options2 = [{name, Name}, {ip, Address}, {port, Port},
 			{sctp_role, SctpRole}, {m3ua_role, M3uaRole} | Options1],
 	opening1(open(Node, Port, Options2, Callback), StateData).
 opening1({ok, EP}, #statedata{sctp_role = server} = StateData) ->
