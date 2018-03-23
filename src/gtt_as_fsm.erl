@@ -35,7 +35,7 @@
 			terminate/3, code_change/4]).
 
 -record(statedata,
-		{name :: as_ref(),
+		{name :: as_ref() | sg_ref(),
 		role :: as | sg,
 		na :: pos_integer(),
 		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
