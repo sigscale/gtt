@@ -20,10 +20,14 @@
 -module(gtt).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
--export([add_ep/7, add_ep/8, get_ep/0, find_ep/1,
-		start_ep/1, stat_ep/1, stat_ep/2]).
--export([add_as/7, get_as/0, find_as/1]).
--export([add_key/1, find_pc/1, find_pc/2, find_pc/3, find_pc/4]).
+%% export the public API
+-export([add_ep/7, add_ep/8, delete_ep/1, get_ep/0, find_ep/1,
+		stat_ep/1, stat_ep/2]).
+-export([add_as/7, delete_as/1, get_as/0, find_as/1]).
+-export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
+		find_pc/3, find_pc/4]).
+
+%% export the private API
 
 -include("gtt.hrl").
 
@@ -95,6 +99,23 @@ add_ep(Name, {LocalAddr, LocalPort, _} = Local, Remote,
 			{error, Reason}
 	end.
 
+-spec delete_ep(Name) -> Result
+	when
+		Name :: ep_ref(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Delete an SCTP endpoint specification.
+delete_ep(Name) ->
+	F = fun() ->
+				mnesia:delete(gtt_ep, Name, write)
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			ok;
+		{abort, Reason} ->
+			{error, Reason}
+	end.
+
 -spec get_ep() -> EpNames
 	when
 		EpNames :: [EpName],
@@ -109,15 +130,15 @@ get_ep() ->
 			exit(Reason)
 	end.
 
--spec find_ep(EpName) -> Result
+-spec find_ep(Name) -> Result
 	when
-		EpName :: ep_ref(),
+		Name :: ep_ref(),
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
 %% @doc Search for an SCTP endpoint specification by name.
-find_ep(EpName) ->
-	F = fun() -> mnesia:read(gtt_ep, EpName, read) end,
+find_ep(Name) ->
+	F = fun() -> mnesia:read(gtt_ep, Name, read) end,
 	case mnesia:transaction(F) of
 		{atomic, []} ->
 			{error, not_found};
@@ -161,6 +182,23 @@ add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp)
 		{atomic, AS} ->
 			{ok, AS};
 		{aborted, Reason} ->
+			{error, Reason}
+	end.
+
+-spec delete_as(Name) -> Result
+	when
+		Name :: as_ref(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Delete an Application Server (AS) specification.
+delete_as(Name) ->
+	F = fun() ->
+				mnesia:delete(gtt_as, Name, write)
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			ok;
+		{abort, Reason} ->
 			{error, Reason}
 	end.
 
@@ -213,6 +251,29 @@ add_key({NA, Keys, _} = Key) when is_list(Keys),
 				ok
 	end,
 	case mnesia:transaction(Fadd, [Fadd, Keys]) of
+		{atomic, ok} ->
+			ok;
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
+
+-spec delete_key(Key) -> Result
+	when
+		Key :: m3ua:routing_key(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Delete MTP3 point codes from Point Code route table.
+delete_key({NA, Keys, _} = Key) when is_list(Keys),
+		(is_integer(NA) or (NA == undefined)) ->
+	Fdel = fun(F, [{DPC, SI, OPC} | T]) when is_integer(DPC),
+					is_list(SI), is_list(OPC) ->
+				PC = #gtt_pc{dpc = DPC, na = NA, si = SI, opc = OPC, as = Key},
+				ok = mnesia:delete_object(PC),
+				F(F, T);
+			(_, []) ->
+				ok
+	end,
+	case mnesia:transaction(Fdel, [Fdel, Keys]) of
 		{atomic, ok} ->
 			ok;
 		{aborted, Reason} ->
@@ -410,7 +471,6 @@ stat_ep(EpRef, Options) when is_list(Options) ->
 %%----------------------------------------------------------------------
 %%  The gtt private API
 %%----------------------------------------------------------------------
-
 
 %%----------------------------------------------------------------------
 %%  internal functions

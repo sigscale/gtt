@@ -91,7 +91,7 @@ transfer(Stream, RC, OPC, DPC, SLS, SIO, UnitData,
 	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData),
 	transfer1(2057, SLS, SIO, UnitData, State, ASs).
 %% @hidden
-transfer1(OPC, SLS, SIO, UnitData, State, []) ->
+transfer1(_OPC, _SLS, _SIO, _UnitData, State, []) ->
 	{ok, State};
 transfer1(OPC, SLS, SIO, UnitData, State, ASs) ->
 erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),

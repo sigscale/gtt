@@ -1,4 +1,4 @@
-%%% gtt_as_fsm.erl
+%%% gtt_ep_fsm.erl
 %%% vim: ts=3
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2016 - 2017 SigScale Global Inc.
@@ -16,45 +16,50 @@
 %%% limitations under the License.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @doc This {@link //stdlib/gen_fsm. gen_fsm} behaviour module
-%%% 	implements a state machine for an Application Server (AS)
+%%% 	implements a state machine for an SCTP endpoint
 %%% 	in the {@link //gtt. gtt} application.
 %%%
--module(gtt_as_fsm).
+-module(gtt_ep_fsm).
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
 -behaviour(gen_fsm).
 
-%% export the gtt_as_fsm public API
+%% export the gtt_ep_fsm public API
 -export([]).
 
-%% export the gtt_as_fsm state callbacks
--export([down/2, inactive/2, active/2, pending/2]).
+%% export the gtt_ep_fsm state callbacks
+-export([opening/2, listening/2, connecting/2, connected/2]).
 
 %% export the call backs needed for gen_fsm behaviour
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3,
 			terminate/3, code_change/4]).
 
--record(statedata,
-		{name :: as_ref() | sg_ref(),
-		role :: as | sg,
-		na :: pos_integer(),
-		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
-		mode :: override | loadshare | broadcast,
-		min :: pos_integer(),
-		max :: pos_integer()}).
--type statedata() :: #statedata{}.
-
 -include("gtt.hrl").
 
-%% Timer T(r)
--define(Tr, 2000).
+-record(statedata,
+		{name :: ep_ref(),
+		sctp_role :: client | server,
+		m3ua_role :: sgp | asp,
+		callback :: atom() | #m3ua_fsm_cb{},
+		local_port :: inet:port_number(),
+		local_address :: inet:ip_address(),
+		local_options = [] :: list(),
+		remote_address :: inet:ip_address(),
+		remote_port :: inet:port_number(),
+		remote_options = [] :: list(),
+		node :: atom(),
+		ep :: pid(),
+		assoc :: pos_integer()}).
+-type statedata() :: #statedata{}.
+
+-define(TIMEOUT, 300000).
 
 %%----------------------------------------------------------------------
-%%  The gtt_as_fsm API
+%%  The gtt_ep_fsm API
 %%----------------------------------------------------------------------
 
 %%----------------------------------------------------------------------
-%%  The gtt_as_fsm gen_fsm call backs
+%%  The gtt_ep_fsm gen_fsm call backs
 %%----------------------------------------------------------------------
 
 -spec init(Args) -> Result
@@ -70,20 +75,31 @@
 %% @private
 %%
 init([Name] = _Args) ->
-	F = fun() -> mnesia:read(gtt_as, Name, read) end,
+	F = fun() -> mnesia:read(gtt_ep, Name, read) end,
 	case mnesia:transaction(F) of
-		{atomic, [#gtt_as{name = Name,
-				role = Role, na = NA, keys = Keys,
-				mode = Mode, min_asp = Min, max_asp = Max}]} ->
+		{atomic, [#gtt_ep{name = Name,
+				sctp_role = SctpRole, m3ua_role = M3uaRole,
+				callback = CallBack, node = Node,
+				local = {LocalAddress, LocalPort, LocalOptions},
+				remote = Remote}]} ->
+			{RemoteAddress, RemotePort, RemoteOptions} = case Remote of
+				{RA, RP, RO} ->
+					{RA, RP, RO};
+				undefined ->
+					{undefined, undefined, []}
+			end,
 			StateData = #statedata{name = Name,
-					role = Role, na = NA, keys = Keys,
-					mode = Mode, min = Min, max = Max},
-			{ok, down, StateData};
+					sctp_role = SctpRole, m3ua_role = M3uaRole,
+					callback = CallBack, node = Node,
+					local_address = LocalAddress, local_port = LocalPort,
+					local_options = LocalOptions, remote_address = RemoteAddress,
+					remote_port = RemotePort, remote_options = RemoteOptions},
+			{ok, opening, StateData, 0};
 		{aborted, Reason} ->
 			{stop, Reason}
 	end.
 
--spec down(Event, StateData) -> Result
+-spec opening(Event, StateData) -> Result
 	when
 		Event :: timeout | term(),
 		StateData :: statedata(),
@@ -96,20 +112,24 @@ init([Name] = _Args) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-down({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
-	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
-		{ok, _RoutingContext} ->
-			{next_state, inactive, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
-	{next_state, inactive, StateData}.
+opening(timeout, #statedata{name = Name, node = Node,
+		local_address = Address, local_port = Port,
+		local_options = Options1, callback = Callback,
+		sctp_role = SctpRole, m3ua_role = M3uaRole} = StateData) ->
+	Options2 = [{name, Name}, {ip, Address}, {port, Port},
+			{sctp_role, SctpRole}, {m3ua_role, M3uaRole} | Options1],
+	opening1(open(Node, Port, Options2, Callback), StateData).
+opening1({ok, EP}, #statedata{sctp_role = server} = StateData) ->
+	{next_state, listening, StateData#statedata{ep = EP}};
+opening1({ok, EP}, #statedata{sctp_role = client,
+		node = Node, remote_address = Address,
+		remote_port = Port, remote_options = Options} = StateData) ->
+	connect(Node, EP, Address, Port, Options),
+	{next_state, connecting, StateData#statedata{ep = EP}, ?TIMEOUT};
+opening1({error, Reason}, StateData) ->
+	{stop, Reason, StateData}.
 
--spec inactive(Event, StateData) -> Result
+-spec listening(Event, StateData) -> Result
 	when
 		Event :: timeout | term(),
 		StateData :: statedata(),
@@ -122,40 +142,10 @@ down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData) ->
-	case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
-		ok ->
-			{next_state, inactive, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID}, StateData) ->
-	case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
-		ok ->
-			{next_state, active, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-inactive({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
-	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
-		{ok, _RoutingContext} ->
-			{next_state, inactive, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-inactive({'M-ASP_ACTIVE', _Node, _EP, _Assoc}, StateData) ->
-	{next_state, active, StateData};
-inactive({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
-	{next_state, down, StateData}.
+listening(_Event, StateData) ->
+	{stop, unimplemented, StateData}.
 
--spec active(Event, StateData) -> Result
+-spec connecting(Event, StateData) -> Result
 	when
 		Event :: timeout | term(),
 		StateData :: statedata(),
@@ -168,24 +158,10 @@ inactive({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-active({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_inactive, _AspID}, StateData) ->
-	{next_state, inactive, StateData};
-active({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_pending, _AspID}, StateData) ->
-	{next_state, pending, StateData};
-active({'M-ASP_UP', EP, Assoc},
-		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
-			{next_state, active, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-active({'M-ASP_ACTIVE', _Node, _EP, _Assoc}, StateData) ->
-	{next_state, pending, StateData, ?Tr};
-active({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
-	{next_state, pending, StateData, ?Tr}.
+connecting(timeout, StateData) ->
+	{stop, timeout, StateData}.
 
--spec pending(Event, StateData) -> Result
+-spec connected(Event, StateData) -> Result
 	when
 		Event :: timeout | term(),
 		StateData :: statedata(),
@@ -198,12 +174,8 @@ active({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-pending(timeout, #statedata{} = StateData) ->
-	{next_state, down, StateData};
-pending({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_inactive, _AspID}, StateData) ->
-	{next_state, inactive, StateData};
-pending({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_active, _AspID}, StateData) ->
-	{next_state, active, StateData}.
+connected(_Event, StateData) ->
+	{stop, unimplemented, StateData}.
 
 -spec handle_event(Event, StateName, StateData) -> Result
 	when
@@ -221,8 +193,8 @@ pending({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_active, _AspID}, StateData) ->
 %% @see //stdlib/gen_fsm:handle_event/3
 %% @private
 %%
-handle_event(_Event, StateName, StateData) ->
-	{next_state, StateName, StateData}.
+handle_event(_Event, _StateName, StateData) ->
+	{stop, unimplemented, StateData}.
 
 -spec handle_sync_event(Event, From, StateName, StateData) -> Result
 	when
@@ -246,8 +218,8 @@ handle_event(_Event, StateName, StateData) ->
 %% @see //stdlib/gen_fsm:handle_sync_event/4
 %% @private
 %%
-handle_sync_event(_Event, _From, StateName, StateData) ->
-	{next_state, StateName, StateData}.
+handle_sync_event(_Event, _From, _StateName, StateData) ->
+	{stop, unimplemented, StateData}.
 
 -spec handle_info(Info, StateName, StateData) -> Result
 	when
@@ -263,8 +235,12 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
 %% @see //stdlib/gen_fsm:handle_info/3
 %% @private
 %%
-handle_info(_, StateName, StateData) ->
-	{next_state, StateName, StateData}.
+handle_info({Ref, {ok, Assoc}}, connecting, StateData)
+		when is_reference(Ref), is_integer(Assoc) ->
+	{next_state, connected, StateData#statedata{assoc = Assoc}};
+handle_info({Ref, {error, Reason}}, connecting, StateData)
+		when is_reference(Ref) ->
+	{stop, Reason, StateData}.
 
 -spec terminate(Reason, StateName, StateData) -> any()
 	when
@@ -295,4 +271,25 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+
+%% @hidden
+open(Node, Port, Options, Callback) when Node == node() ->
+	m3ua:open(Port, Options, Callback);
+open(Node, Port, Options, Callback) ->
+	case rpc:call(Node, m3ua, open, [Port, Options, Callback]) of
+		{ok, EP} ->
+			{ok, EP};
+		{badrpc, _} = Reason ->
+			{error, Reason};
+		{error, Reason} ->
+			{error, Reason}
+	end.
+
+%% @hidden
+connect(Node, EP, Address, Port, Options) when Node == node() ->
+	Req = {'M-SCTP_ESTABLISH', request, EP, Address, Port, Options},
+	catch gen_server:call(m3ua, Req, 0);
+connect(Node, EP, Address, Port, Options) ->
+	Req = {'M-SCTP_ESTABLISH', request, EP, Address, Port, Options},
+	catch gen_server:call({m3ua, Node}, Req, 0).
 

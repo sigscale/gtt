@@ -74,53 +74,48 @@ start2(TopSup) ->
 		{atomic, ASs} ->
 			Children = supervisor:which_children(TopSup),
 			{_, AsFsmSup, _, _} = lists:keyfind(gtt_as_fsm_sup, 1, Children),
-			start3(TopSup, AsFsmSup, ASs);
+			{_, EpFsmSup, _, _} = lists:keyfind(gtt_ep_fsm_sup, 1, Children),
+			start3(TopSup, EpFsmSup, AsFsmSup, ASs);
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
-start3(TopSup, AsFsmSup, [AS | T]) ->
-	F = fun() -> mnesia:read(gtt_as, AS, read) end,
-	start4(TopSup, AsFsmSup, mnesia:transaction(F), T);
-start3(TopSup, _, []) ->
-	start5(TopSup).
-%% @hidden
-start4(TopSup, AsFsmSup, {atomic, [#gtt_as{name = Name, role = Role,
-		na = NA, keys = Keys, mode = Mode, min_asp = Min, max_asp = Max}]}, T) ->
+start3(TopSup, EpFsmSup, AsFsmSup, [Name | T]) ->
 	StartMod = gtt_as_fsm,
-	StartArgs = [Name, Role, NA, Keys, Mode, Min, Max],
+	StartArgs = [Name],
 	StartOpts = [],
 	case supervisor:start_child(AsFsmSup,
 			[{global, Name}, StartMod, StartArgs, StartOpts]) of
 		{ok, _Child} ->
-			start3(TopSup, AsFsmSup, T);
+			start3(TopSup, EpFsmSup, AsFsmSup, T);
 		{error, Reason} ->
 			error_logger:error_report(["Failed to start Application Server",
 					{as, Name}, {reason, Reason}, {module, ?MODULE}]),
-			start3(TopSup, AsFsmSup, T)
+			start3(TopSup, EpFsmSup, AsFsmSup, T)
 	end;
-start4(_, _, {aborted, Reason}, _) ->
-	{error, Reason}.
-%% @hidden
-start5(TopSup) ->
+start3(TopSup, EpFsmSup, _, []) ->
 	F = fun() -> mnesia:all_keys(gtt_ep) end,
 	case mnesia:transaction(F) of
 		{atomic, EndPoints} ->
-			start6(TopSup, EndPoints);
+			start4(TopSup, EpFsmSup, EndPoints);
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
-start6(TopSup, [EP | T]) ->
-	case gtt:start_ep(EP) of
-		ok ->
-			start6(TopSup, T);
+start4(TopSup, EpFsmSup, [Name | T]) ->
+	StartMod = gtt_ep_fsm,
+	StartArgs = [Name],
+	StartOpts = [],
+	case supervisor:start_child(EpFsmSup,
+			[StartMod, StartArgs, StartOpts]) of
+		{ok, _Child} ->
+			start4(TopSup, EpFsmSup, T);
 		{error, Reason} ->
 			error_logger:error_report(["Failed to start SCTP endpoint",
-					{endpoint, EP}, {reason, Reason}, {module, ?MODULE}]),
-			start6(TopSup, T)
+					{endpoint, Name}, {reason, Reason}, {module, ?MODULE}]),
+			start4(TopSup, EpFsmSup, T)
 	end;
-start6(TopSup, []) ->
+start4(TopSup, _, []) ->
 	{ok, TopSup}.
 
 -spec start_phase(Phase :: atom(), StartType :: start_type(),

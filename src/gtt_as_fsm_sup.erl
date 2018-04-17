@@ -38,7 +38,7 @@
 init([] = _Args) ->
 	StartMod = gtt_as_fsm,
 	StartFunc = {gen_fsm, start_link, []},
-	ChildSpec = {StartMod, StartFunc, transient, 4000, worker, [StartMod]},
+	ChildSpec = {StartMod, StartFunc, permanent, 4000, worker, [StartMod]},
 	{ok, {{simple_one_for_one, 10, 60}, [ChildSpec]}}.
 
 %%----------------------------------------------------------------------
