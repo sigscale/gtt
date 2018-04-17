@@ -301,20 +301,38 @@ start_ep(EpName) ->
 			{error, Reason}
 	end.
 %% @hidden
-start_ep1(#gtt_ep{name = Name, sctp_role = SctpRole,
+start_ep1(#gtt_ep{sctp_role = server, name = Name, node = Node,
 		m3ua_role = M3uaRole, callback = Callback,
-		local = {LocalAddr, LocalPort, Options}, node = Node} = EP) ->
-	NewOptions = [{name, Name}, {sctp_role, SctpRole},
-			{m3ua_role, M3uaRole}, {ip, LocalAddr}] ++ Options,
+		local = {LocalAddr, LocalPort, Options}} = EP) ->
+	NewOptions = [{name, Name}, {role, M3uaRole}, {ip, LocalAddr}] ++ Options,
 	case catch start_ep2(Node, LocalPort, NewOptions, Callback) of
 		{ok, Pid} ->
 			NewEP = EP#gtt_ep{ep = Pid},
 			F = fun() -> mnesia:write(NewEP) end,
 			case mnesia:transaction(F) of
-				{atomic, ok} when SctpRole == server ->
+				{atomic, ok} ->
 					ok;
-				{atomic, ok} when SctpRole == client ->
-					start_ep3(Node, NewEP);
+				{aborted, Reason} ->
+					{error, Reason}
+			end;
+		{error, Reason} ->
+			{error, Reason};
+		{'EXIT', Reason} ->
+			{error, Reason}
+	end;
+start_ep1(#gtt_ep{sctp_role = client, name = Name, node = Node,
+		m3ua_role = M3uaRole, callback = Callback,
+		local = {LocalAddr, LocalPort, LocalOptions},
+		remote = {RemoteAddr, RemotePort, RemoteOptions}} = EP) ->
+	NewOptions = [{name, Name}, {role, M3uaRole}, {ip, LocalAddr},
+			{connect, RemoteAddr, RemotePort, RemoteOptions}] ++ LocalOptions,
+	case catch start_ep2(Node, LocalPort, NewOptions, Callback) of
+		{ok, Pid} ->
+			NewEP = EP#gtt_ep{ep = Pid},
+			F = fun() -> mnesia:write(NewEP) end,
+			case mnesia:transaction(F) of
+				{atomic, ok} ->
+					ok;
 				{aborted, Reason} ->
 					{error, Reason}
 			end;
@@ -325,37 +343,14 @@ start_ep1(#gtt_ep{name = Name, sctp_role = SctpRole,
 	end.
 %% @hidden
 start_ep2(Node, Port, Options, Callback) when Node == node() ->
-	m3ua:open(Port, Options, Callback);
+	m3ua:start(Callback, Port, Options);
 start_ep2(Node, Port, Options, Callback) ->
-	case rpc:call(Node, m3ua, open, [Port, Options, Callback]) of
+	case rpc:call(Node, m3ua, start, [Callback, Port, Options]) of
 		{ok, EP} ->
 			{ok, EP};
 		{error, Reason} ->
 			{error, Reason};
 		{badrpc, _} = Reason ->
-			{error, Reason}
-	end.
-%% @hidden
-start_ep3(Node, #gtt_ep{ep = EP, remote = {Address, Port, Options}})
-		when Node == node() ->
-	case m3ua:sctp_establish(EP, Address, Port, Options) of
-		{ok, Assoc} ->
-			m3ua:asp_up(EP, Assoc);
-		{error, Reason} ->
-			{error, Reason}
-	end;
-start_ep3(Node, #gtt_ep{ep = EP, remote = {Address, Port, Options}}) ->
-	case rpc:call(Node, m3ua, sctp_establish, [EP, Address, Port, Options]) of
-		{ok, Assoc} ->
-			case rpc:call(Node, m3ua, asp_up, [EP, Assoc]) of
-				ok ->
-					ok;
-				{badrpc, _} = Reason ->
-					{error, Reason};
-				{error, Reason} ->
-					{error, Reason}
-			end;
-		{error, Reason} ->
 			{error, Reason}
 	end.
 
@@ -371,9 +366,9 @@ stat_ep(EpRef) ->
 	case find_ep(EpRef) of
 		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
-			m3ua:getstat_endpoint(EP);
+			m3ua:getstat(EP);
 		{ok, #gtt_ep{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat_endpoint, [EP]) of
+			case rpc:call(Node, m3ua, getstat, [EP]) of
 				{ok, OptionValues} ->
 					{ok, OptionValues};
 				{error, Reason} ->
@@ -398,9 +393,9 @@ stat_ep(EpRef, Options) when is_list(Options) ->
 	case find_ep(EpRef) of
 		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
-			m3ua:getstat_endpoint(EP, Options);
+			m3ua:getstat(EP, Options);
 		{ok, #gtt_ep{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat_endpoint, [EP, Options]) of
+			case rpc:call(Node, m3ua, getstat, [EP, Options]) of
 				{ok, OptionValues} ->
 					{ok, OptionValues};
 				{error, Reason} ->
