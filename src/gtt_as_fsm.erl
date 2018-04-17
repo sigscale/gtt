@@ -121,8 +121,15 @@ inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData) ->
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-inactive({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_active, _AspID}, StateData) ->
-	{next_state, active, StateData};
+inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID}, StateData) ->
+	case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
+		ok ->
+			{next_state, active, StateData};
+		{badrpc, _} = Reason->
+			{stop, Reason, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 inactive({'M-ASP_UP', Node, EP, Assoc},
 		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
 	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
