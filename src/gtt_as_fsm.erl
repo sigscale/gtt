@@ -97,12 +97,11 @@ init([Name] = _Args) ->
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 down({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
-	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
+		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
 		{ok, _RoutingContext} ->
 			{next_state, inactive, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -122,14 +121,13 @@ down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData) ->
-	case rpc:call(Node, m3ua, asp_status, [EP, Assoc]) of
+inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData)
+		when Node == node() ->
+	case m3ua(asp_status(EP, Assoc) of
 		inactive ->
-			case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
+			case m3ua:asp_active(EP, Assoc) of
 				ok ->
 					{next_state, inactive, StateData};
-				{badrpc, _} = Reason->
-					{stop, Reason, StateData};
 				{error, Reason} ->
 					{stop, Reason, StateData}
 			end;
@@ -137,13 +135,11 @@ inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData) ->
 			{next_state, inactive, StateData}
 	end;
 inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID}, StateData) ->
-	case rpc:call(Node, m3ua, asp_status, [EP, Assoc]) of
+	case m3ua:asp_status(EP, Assoc) of
 		inactive ->
-			case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
+			case m3ua:asp_active(EP, Assoc) of
 				ok ->
 					{next_state, active, StateData};
-				{badrpc, _} = Reason->
-					{stop, Reason, StateData};
 				{error, Reason} ->
 					{stop, Reason, StateData}
 			end;
@@ -152,11 +148,9 @@ inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID}, StateData) ->
 	end;
 inactive({'M-ASP_UP', Node, EP, Assoc},
 		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
-	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
 		{ok, _RoutingContext} ->
 			{next_state, inactive, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;

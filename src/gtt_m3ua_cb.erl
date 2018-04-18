@@ -254,7 +254,7 @@ asp_up(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_up, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
-				gen_fsm:send_event({global, AS}, {'M-ASP_UP', node(), EP, Assoc})
+				gen_fsm:send_event(AS, {'M-ASP_UP', node(), EP, Assoc})
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
@@ -306,7 +306,7 @@ notify(RC, Status, AspID, #state{ep_name = EpName, ep = EP, assoc = Assoc} = Sta
 erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
-				gen_fsm:send_event({global, AS}, {'M-NOTIFY', node(), EP, Assoc, RC, Status, AspID})
+				gen_fsm:send_event(AS, {'M-NOTIFY', node(), EP, Assoc, RC, Status, AspID})
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
