@@ -124,7 +124,6 @@ opening1({ok, EP}, #statedata{sctp_role = server} = StateData) ->
 opening1({ok, EP}, #statedata{sctp_role = client,
 		node = Node, remote_address = Address,
 		remote_port = Port, remote_options = Options} = StateData) ->
-	connect(Node, EP, Address, Port, Options),
 	{next_state, connecting, StateData#statedata{ep = EP}, ?TIMEOUT};
 opening1({error, Reason}, StateData) ->
 	{stop, Reason, StateData}.
@@ -273,10 +272,10 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 
 %% @hidden
-open(Node, Port, Options, Callback) when Node == node() ->
-	m3ua:open(Port, Options, Callback);
-open(Node, Port, Options, Callback) ->
-	case rpc:call(Node, m3ua, open, [Port, Options, Callback]) of
+open(Node, Callback, Port, Options) when Node == node() ->
+	m3ua:open(Callback, Port, Options);
+open(Node, Callback, Port, Options) ->
+	case rpc:call(Node, m3ua, start, [Callback, Port, Options]) of
 		{ok, EP} ->
 			{ok, EP};
 		{badrpc, _} = Reason ->
@@ -284,12 +283,4 @@ open(Node, Port, Options, Callback) ->
 		{error, Reason} ->
 			{error, Reason}
 	end.
-
-%% @hidden
-connect(Node, EP, Address, Port, Options) when Node == node() ->
-	Req = {'M-SCTP_ESTABLISH', request, EP, Address, Port, Options},
-	catch gen_server:call(m3ua, Req, 0);
-connect(Node, EP, Address, Port, Options) ->
-	Req = {'M-SCTP_ESTABLISH', request, EP, Address, Port, Options},
-	catch gen_server:call({m3ua, Node}, Req, 0).
 
