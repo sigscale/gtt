@@ -35,7 +35,7 @@
 			terminate/3, code_change/4]).
 
 -record(statedata,
-		{name :: as_ref() | sg_ref(),
+		{name :: as_ref(),
 		role :: as | sg,
 		na :: pos_integer(),
 		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
@@ -123,22 +123,32 @@ down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData) ->
-	case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
-		ok ->
-			{next_state, inactive, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
+	case rpc:call(Node, m3ua, asp_status, [EP, Assoc]) of
+		inactive ->
+			case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
+				ok ->
+					{next_state, inactive, StateData};
+				{badrpc, _} = Reason->
+					{stop, Reason, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		_ ->
+			{next_state, inactive, StateData}
 	end;
 inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID}, StateData) ->
-	case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
-		ok ->
-			{next_state, active, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
+	case rpc:call(Node, m3ua, asp_status, [EP, Assoc]) of
+		inactive ->
+			case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
+				ok ->
+					{next_state, active, StateData};
+				{badrpc, _} = Reason->
+					{stop, Reason, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		_ ->
+			{next_state, active, StateData}
 	end;
 inactive({'M-ASP_UP', Node, EP, Assoc},
 		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
