@@ -37,8 +37,7 @@
 %%
 init([] = _Args) ->
 	ChildSpecs = [server(gtt_server, [self()]),
-			supervisor(gtt_as_fsm_sup, []),
-			supervisor(gtt_ep_fsm_sup, [])],
+			supervisor(gtt_as_fsm_sup, [])],
 	{ok, {{one_for_all, 1, 5}, ChildSpecs}}.
 
 %%----------------------------------------------------------------------

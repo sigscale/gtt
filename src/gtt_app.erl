@@ -50,7 +50,7 @@
 %% @see //kernel/application:start/2
 %%
 start(normal = _StartType, _Args) ->
-	Tables = [gtt_ep, gtt_as],
+	Tables = [gtt_as, gtt_ep, gtt_pc],
 	case mnesia:wait_for_tables(Tables, 60000) of
 		ok ->
 			start1();
@@ -63,60 +63,65 @@ start(normal = _StartType, _Args) ->
 start1() ->
 	case supervisor:start_link(gtt_sup, []) of
 		{ok, TopSup} ->
-			start2(TopSup);
-		{error, Reason} ->
-			{error, Reason}
-	end.
-%% @hidden
-start2(TopSup) ->
-	F = fun() -> mnesia:all_keys(gtt_as) end,
-	case mnesia:transaction(F) of
-		{atomic, ASs} ->
 			Children = supervisor:which_children(TopSup),
 			{_, AsFsmSup, _, _} = lists:keyfind(gtt_as_fsm_sup, 1, Children),
-			{_, EpFsmSup, _, _} = lists:keyfind(gtt_ep_fsm_sup, 1, Children),
-			start3(TopSup, EpFsmSup, AsFsmSup, ASs);
-		{aborted, Reason} ->
+			start2(TopSup, AsFsmSup);
+		{error, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
-start3(TopSup, EpFsmSup, AsFsmSup, [Name | T]) ->
-	StartMod = gtt_as_fsm,
-	StartArgs = [Name],
-	StartOpts = [],
-	case supervisor:start_child(AsFsmSup,
-			[{global, Name}, StartMod, StartArgs, StartOpts]) of
-		{ok, _Child} ->
-			start3(TopSup, EpFsmSup, AsFsmSup, T);
-		{error, Reason} ->
-			error_logger:error_report(["Failed to start Application Server",
-					{as, Name}, {reason, Reason}, {module, ?MODULE}]),
-			start3(TopSup, EpFsmSup, AsFsmSup, T)
-	end;
-start3(TopSup, EpFsmSup, _, []) ->
-	F = fun() -> mnesia:all_keys(gtt_ep) end,
+start2(TopSup, AsFsmSup) ->
+	MatchSpec = [{#gtt_ep{node = '$1'}, [{'==', '$1', {node}}], ['$_']}],
+	F = fun() ->
+				mnesia:select(gtt_ep, MatchSpec)
+	end,
 	case mnesia:transaction(F) of
-		{atomic, EndPoints} ->
-			start4(TopSup, EpFsmSup, EndPoints);
+		{atomic, LocalEndPoints} ->
+			start3(TopSup, AsFsmSup, LocalEndPoints, []);
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
 %% @hidden
-start4(TopSup, EpFsmSup, [Name | T]) ->
-	StartMod = gtt_ep_fsm,
-	StartArgs = [Name],
-	StartOpts = [],
-	case supervisor:start_child(EpFsmSup,
-			[StartMod, StartArgs, StartOpts]) of
-		{ok, _Child} ->
-			start4(TopSup, EpFsmSup, T);
-		{error, Reason} ->
-			error_logger:error_report(["Failed to start SCTP endpoint",
-					{endpoint, Name}, {reason, Reason}, {module, ?MODULE}]),
-			start4(TopSup, EpFsmSup, T)
-	end;
-start4(TopSup, _, []) ->
+start3(TopSup, AsFsmSup, [#gtt_ep{as = ASs} = EP | T], Acc) ->
+	start4(TopSup, AsFsmSup, T, EP, ASs, Acc);
+start3(TopSup, _, [], _) ->
 	{ok, TopSup}.
+%% @hidden
+start4(TopSup, AsFsmSup, EPs, EP, [H | T], Acc) ->
+	case lists:member(H, Acc) of
+		true ->
+			start4(TopSup, AsFsmSup, EPs, EP, T, Acc);
+		false ->
+			case supervisor:start_child(AsFsmSup,
+					[{local, H}, gtt_as_fsm, [H], []]) of
+				{ok, _Child} ->
+					start4(TopSup, AsFsmSup, EPs, EP, T, [H | Acc]);
+				{error, Reason} ->
+					{error, Reason}
+			end
+	end;
+start4(TopSup, AsFsmSup, EPs, #gtt_ep{sctp_role = server,
+		name = Name, m3ua_role = Role, callback = CallBack,
+		local = {Laddress, Lport, Loptions}}, [], Acc) ->
+	Options = [{name, Name}, {role, Role}, {ip, Laddress} | Loptions],
+	case m3ua:start(CallBack, Lport, Options) of
+		{ok, _EndPoint} ->
+			start3(TopSup, AsFsmSup, EPs, Acc);
+		{error, Reason} ->
+			{error, Reason}
+	end;
+start4(TopSup, AsFsmSup, EPs, #gtt_ep{sctp_role = client,
+		name = Name, m3ua_role = Role, callback = CallBack,
+		local = {Laddress, Lport, Loptions},
+		remote = {Raddress, Rport, Roptions}}, [], Acc) ->
+	Options = [{name, Name}, {role, Role}, {ip, Laddress},
+			{connect, Raddress, Rport, Roptions} | Loptions],
+	case m3ua:start(CallBack, Lport, Options) of
+		{ok, _EndPoint} ->
+			start3(TopSup, AsFsmSup, EPs, Acc);
+		{error, Reason} ->
+			{error, Reason}
+	end.
 
 -spec start_phase(Phase :: atom(), StartType :: start_type(),
 		PhaseArgs :: term()) -> ok | {error, Reason :: term()}.
