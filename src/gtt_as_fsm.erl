@@ -123,7 +123,7 @@ down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
 %% @private
 inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData)
 		when Node == node() ->
-	case m3ua(asp_status(EP, Assoc) of
+	case m3ua:asp_status(EP, Assoc) of
 		inactive ->
 			case m3ua:asp_active(EP, Assoc) of
 				ok ->
@@ -134,7 +134,8 @@ inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData)
 		_ ->
 			{next_state, inactive, StateData}
 	end;
-inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID}, StateData) ->
+inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID}, StateData)
+		when Node == node() ->
 	case m3ua:asp_status(EP, Assoc) of
 		inactive ->
 			case m3ua:asp_active(EP, Assoc) of
@@ -147,7 +148,8 @@ inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID}, StateData) ->
 			{next_state, active, StateData}
 	end;
 inactive({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
+		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
 	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
 		{ok, _RoutingContext} ->
 			{next_state, inactive, StateData};
