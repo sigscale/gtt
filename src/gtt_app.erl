@@ -71,7 +71,8 @@ start1() ->
 	end.
 %% @hidden
 start2(TopSup, AsFsmSup) ->
-	MatchSpec = [{#gtt_ep{node = '$1'}, [{'==', '$1', {node}}], ['$_']}],
+	MatchSpec = [{#gtt_ep{node = '$1', _ = '_'},
+			[{'==', '$1', {node}}], ['$_']}],
 	F = fun() ->
 				mnesia:select(gtt_ep, MatchSpec)
 	end,
