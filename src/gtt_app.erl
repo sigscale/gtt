@@ -94,7 +94,7 @@ start4(TopSup, AsFsmSup, EPs, EP, [H | T], Acc) ->
 			start4(TopSup, AsFsmSup, EPs, EP, T, Acc);
 		false ->
 			case supervisor:start_child(AsFsmSup,
-					[{local, H}, gtt_as_fsm, [H], []]) of
+					[{local, H}, gtt_as_fsm, [H], [{debug, [trace]}]]) of
 				{ok, _Child} ->
 					start4(TopSup, AsFsmSup, EPs, EP, T, [H | Acc]);
 				{error, Reason} ->

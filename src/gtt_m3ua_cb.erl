@@ -266,8 +266,13 @@ erlang:display({?MODULE, ?LINE, asp_up, State}),
 %% @doc Called when ASP reports that it has received an ASP Down Ack
 %%		message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Down message from its peer.
-asp_down(State) ->
+asp_down(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_down, State}),
+	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
+	F = fun(AS) ->
+				gen_fsm:send_event(AS, {'M-ASP_DOWN', node(), EP, Assoc})
+	end,
+	lists:foreach(F, ASs),
 	{ok, State}.
 
 -spec asp_active(State) -> Result
@@ -288,8 +293,13 @@ erlang:display({?MODULE, ?LINE, asp_active, State}),
 %% @doc Called when ASP reports that it has received an ASP Inactive
 %%		Ack message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Inactive message from its peer.
-asp_inactive(State) ->
+asp_inactive(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_inactive, State}),
+	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
+	F = fun(AS) ->
+				gen_fsm:send_event(AS, {'M-ASP_INACTIVE', node(), EP, Assoc})
+	end,
+	lists:foreach(F, ASs),
 	{ok, State}.
 
 -spec notify(RC, Status, AspID, State) -> Result
