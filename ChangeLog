@@ -1,5 +1,7 @@
 2018-04-18  Vance Shipley <vances@sigscale.org>
 
+	* run application colocated on each m3ua node
+	* use m3ua supervised endpoints
 	* fixes for asp state management
 
 2018-04-17  Vance Shipley <vances@sigscale.org>
