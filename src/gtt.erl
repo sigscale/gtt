@@ -359,9 +359,9 @@ stat_ep(EpRef) ->
 	case find_ep(EpRef) of
 		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
-			m3ua:getstat_endpoint(EP);
+			m3ua:getstat(EP);
 		{ok, #gtt_ep{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat_endpoint, [EP]) of
+			case rpc:call(Node, m3ua, getstat, [EP]) of
 				{ok, OptionValues} ->
 					{ok, OptionValues};
 				{error, Reason} ->
@@ -386,9 +386,9 @@ stat_ep(EpRef, Options) when is_list(Options) ->
 	case find_ep(EpRef) of
 		{ok, #gtt_ep{node = Node, ep = EP}}
 				when Node == undefined orelse Node == node() ->
-			m3ua:getstat_endpoint(EP, Options);
+			m3ua:getstat(EP, Options);
 		{ok, #gtt_ep{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat_endpoint, [EP, Options]) of
+			case rpc:call(Node, m3ua, getstat, [EP, Options]) of
 				{ok, OptionValues} ->
 					{ok, OptionValues};
 				{error, Reason} ->

@@ -35,7 +35,7 @@
 			terminate/3, code_change/4]).
 
 -record(statedata,
-		{name :: as_ref() | sg_ref(),
+		{name :: as_ref(),
 		role :: as | sg,
 		na :: pos_integer(),
 		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
@@ -96,17 +96,50 @@ init([Name] = _Args) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-down({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
-	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
-		{ok, _RoutingContext} ->
+down({'M-ASP_DOWN', Node, EP, Assoc},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_up(EP, Assoc) of
+		ok ->
 			{next_state, inactive, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
+down({'M-ASP_DOWN', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
+		{ok, _RoutingContext} ->
+			{next_state, inactive, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
+		{ok, _RoutingContext} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+down({'M-ASP_UP', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, inactive, StateData};
+down({'M-ASP_INACTIVE', Node, EP, Assoc},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_active(EP, Assoc) of
+		ok ->
+			{next_state, inactive, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+down({'M-ASP_INACTIVE', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
 	{next_state, inactive, StateData}.
 
 -spec inactive(Event, StateData) -> Result
@@ -122,31 +155,60 @@ down({'M-ASP_INACTIVE', _Node, _EP, _Assoc}, StateData) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID}, StateData) ->
-	case rpc:call(Node, m3ua, asp_active, [EP, Assoc]) of
+inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_status(EP, Assoc) of
+		inactive ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		_ ->
+			{next_state, inactive, StateData}
+	end;
+inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_status(EP, Assoc) of
+		inactive ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, active, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		_ ->
+			{next_state, active, StateData}
+	end;
+inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
+		{ok, _RoutingContext} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+inactive({'M-ASP_UP', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, inactive, StateData};
+inactive({'M-ASP_INACTIVE', Node, EP, Assoc}, StateData) when Node == node() ->
+	case m3ua:asp_active(EP, Assoc) of
 		ok ->
 			{next_state, inactive, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-inactive({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_active, _AspID}, StateData) ->
+inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, active, StateData};
-inactive({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
-	case rpc:call(Node, m3ua, register, [EP, Assoc, NA, Keys, Mode, Name]) of
-		{ok, _RoutingContext} ->
-			{next_state, inactive, StateData};
-		{badrpc, _} = Reason->
-			{stop, Reason, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-inactive({'M-ASP_ACTIVE', _Node, _EP, _Assoc}, StateData) ->
-	{next_state, active, StateData};
-inactive({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
-	{next_state, down, StateData}.
+inactive({'M-ASP_DOWN', Node, _EP, _Assoc}, StateData) when Node == node() ->
+	{next_state, inactive, StateData}.
 
 -spec active(Event, StateData) -> Result
 	when
@@ -161,21 +223,42 @@ inactive({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-active({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_inactive, _AspID}, StateData) ->
+active({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_inactive, _AspID},
+		#statedata{role = as} = StateData) when Node == node() ->
 	{next_state, inactive, StateData};
-active({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_pending, _AspID}, StateData) ->
+active({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_pending, _AspID},
+		#statedata{role = as} = StateData) when Node == node() ->
 	{next_state, pending, StateData};
-active({'M-ASP_UP', EP, Assoc},
-		#statedata{name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
+active({'M-ASP_UP', EP, Assoc}, #statedata{role = as,
+		name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
 	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
 		{ok, _RoutingContext} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, active, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+active({'M-ASP_UP', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, active, StateData};
+active({'M-ASP_INACTIVE', Node, EP, Assoc},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_active(EP, Assoc) of
+		ok ->
 			{next_state, active, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-active({'M-ASP_ACTIVE', _Node, _EP, _Assoc}, StateData) ->
+active({'M-ASP_INACTIVE', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, active, StateData};
+active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, pending, StateData, ?Tr};
-active({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
+active({'M-ASP_DOWN', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, pending, StateData, ?Tr}.
 
 -spec pending(Event, StateData) -> Result
@@ -193,9 +276,11 @@ active({'M-ASP_DOWN', _Node, _EP, _Assoc}, StateData) ->
 %% @private
 pending(timeout, #statedata{} = StateData) ->
 	{next_state, down, StateData};
-pending({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_inactive, _AspID}, StateData) ->
+pending({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_inactive, _AspID},
+		StateData) when Node == node() ->
 	{next_state, inactive, StateData};
-pending({'M-NOTIFY', _Node, _EP, _Assoc, _RC, as_active, _AspID}, StateData) ->
+pending({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_active, _AspID},
+		StateData) when Node == node() ->
 	{next_state, active, StateData}.
 
 -spec handle_event(Event, StateName, StateData) -> Result

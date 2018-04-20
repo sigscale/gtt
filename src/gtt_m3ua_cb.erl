@@ -104,13 +104,13 @@ erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 	MatchFunction = {MatchHead, MatchConditions, MatchBody},
 	MatchExpression = [MatchFunction],
 	ASPs = select(MatchExpression),
-	F2 = fun(F, [{{_, [{PC, _, _} | _], _}, L1} | T], Acc) ->
+	F2 = fun F([{{_, [{PC, _, _} | _], _}, L1} | T], Acc) ->
 				L2 = [A#m3ua_as_asp.fsm || A <- L1, A#m3ua_as_asp.state == active],
-				F(F, T, [[{PC, A} || A <- L2] | Acc]);
-			(_, [], Acc) ->
+				F(T, [[{PC, A} || A <- L2] | Acc]);
+			F([], Acc) ->
 				lists:reverse(lists:flatten(Acc))
 	end,
-	case F2(F2, ASPs, []) of
+	case F2(ASPs, []) of
 		[] ->
 			ok;
 		Active ->
@@ -118,7 +118,7 @@ erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 			case catch m3ua:transfer(Fsm, 1, OPC, DPC, SLS, SIO, UnitData) of
 				{Error, Reason} when Error == error; Error == 'EXIT' ->
 					error_logger:error_report(["MTP-TRANSFER error",
-							{error, Reason}]);
+							{error, Reason}, {fsm, Fsm}, {dpc, DPC}]);
 				ok ->
 					ok
 			end
@@ -254,7 +254,7 @@ asp_up(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_up, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
-				gen_fsm:send_event({global, AS}, {'M-ASP_UP', node(), EP, Assoc})
+				gen_fsm:send_event(AS, {'M-ASP_UP', node(), EP, Assoc})
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
@@ -266,8 +266,13 @@ erlang:display({?MODULE, ?LINE, asp_up, State}),
 %% @doc Called when ASP reports that it has received an ASP Down Ack
 %%		message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Down message from its peer.
-asp_down(State) ->
+asp_down(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_down, State}),
+	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
+	F = fun(AS) ->
+				gen_fsm:send_event(AS, {'M-ASP_DOWN', node(), EP, Assoc})
+	end,
+	lists:foreach(F, ASs),
 	{ok, State}.
 
 -spec asp_active(State) -> Result
@@ -288,8 +293,13 @@ erlang:display({?MODULE, ?LINE, asp_active, State}),
 %% @doc Called when ASP reports that it has received an ASP Inactive
 %%		Ack message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Inactive message from its peer.
-asp_inactive(State) ->
+asp_inactive(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_inactive, State}),
+	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
+	F = fun(AS) ->
+				gen_fsm:send_event(AS, {'M-ASP_INACTIVE', node(), EP, Assoc})
+	end,
+	lists:foreach(F, ASs),
 	{ok, State}.
 
 -spec notify(RC, Status, AspID, State) -> Result
@@ -306,7 +316,7 @@ notify(RC, Status, AspID, #state{ep_name = EpName, ep = EP, assoc = Assoc} = Sta
 erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
-				gen_fsm:send_event({global, AS}, {'M-NOTIFY', node(), EP, Assoc, RC, Status, AspID})
+				gen_fsm:send_event(AS, {'M-NOTIFY', node(), EP, Assoc, RC, Status, AspID})
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
@@ -336,8 +346,7 @@ erlang:display({?MODULE, ?LINE, terminate, _Reason, State}),
 
 -dialyzer([{nowarn_function, [match_head/0]}, no_contracts]).
 match_head() ->
-	#m3ua_as{routing_key = '$1', name = '_',
-			min_asp = '_', max_asp = '_', state = active, asp = '$2'}.
+	#m3ua_as{routing_key = '$1', asp = '$2', state = active, _ = '_'}.
 
 -dialyzer([{nowarn_function, [select/1]}, no_return]).
 select(MatchExpression) ->
