@@ -1,6 +1,5 @@
 2018-04-20  Vance Shipley <vances@sigscale.org>
 
-	* fix asp/sgp supervision strategy
 	* remove table updates from callbacks
 
 2018-04-18  Vance Shipley <vances@sigscale.org>
