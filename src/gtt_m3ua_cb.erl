@@ -301,6 +301,9 @@ erlang:display({?MODULE, ?LINE, asp_inactive, State}),
 		State :: term(),
 		Result :: {ok, State}.
 %% @doc Called when SGP reports Application Server (AS) state changes.
+notify(RC, Status, AspID, #state{module = m3ua_sgp_fsm} = State) ->
+erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
+	{ok, State};
 notify(RC, Status, AspID, #state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
