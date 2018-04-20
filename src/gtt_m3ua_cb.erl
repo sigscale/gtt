@@ -104,13 +104,13 @@ erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 	MatchFunction = {MatchHead, MatchConditions, MatchBody},
 	MatchExpression = [MatchFunction],
 	ASPs = select(MatchExpression),
-	F2 = fun(F, [{{_, [{PC, _, _} | _], _}, L1} | T], Acc) ->
+	F2 = fun F([{{_, [{PC, _, _} | _], _}, L1} | T], Acc) ->
 				L2 = [A#m3ua_as_asp.fsm || A <- L1, A#m3ua_as_asp.state == active],
-				F(F, T, [[{PC, A} || A <- L2] | Acc]);
-			(_, [], Acc) ->
+				F(T, [[{PC, A} || A <- L2] | Acc]);
+			F([], Acc) ->
 				lists:reverse(lists:flatten(Acc))
 	end,
-	case F2(F2, ASPs, []) of
+	case F2(ASPs, []) of
 		[] ->
 			ok;
 		Active ->
