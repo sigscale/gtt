@@ -208,7 +208,7 @@ inactive({'M-ASP_INACTIVE', Node, EP, Assoc}, StateData) when Node == node() ->
 inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, active, StateData};
 inactive({'M-ASP_DOWN', Node, _EP, _Assoc}, StateData) when Node == node() ->
-	{next_state, down, StateData}.
+	{next_state, inactive, StateData}.
 
 -spec active(Event, StateData) -> Result
 	when
