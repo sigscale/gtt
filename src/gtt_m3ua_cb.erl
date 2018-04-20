@@ -222,24 +222,13 @@ erlang:display({?MODULE, ?LINE, status, _Stream, _RC, _DPCs, State}),
 %%  @doc Called when Registration Response message with a
 %%		registration status of successful from its peer or
 %%		successfully processed an incoming Registration Request message.
-register(NA, Keys, TMT, #state{fsm = Fsm, rk = RKs} = State) ->
+register(NA, Keys, TMT, #state{rk = RKs} = State) ->
 erlang:display({?MODULE, ?LINE, register, NA, Keys, TMT, State}),
-	RoutingKey = {NA, Keys,TMT},
-	F = fun() ->
-				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RoutingKey, write),
-				{_, ASP, L2} = lists:keytake(Fsm, #m3ua_as_asp.fsm, L1),
-				L3 = [ASP#m3ua_as_asp{state = active} | L2],
-				mnesia:write(AS#m3ua_as{state = active, asp = L3})
-	end,
-	case mnesia:transaction(F) of
-		{atomic, ok} ->
-			case gtt:add_key({NA, Keys, TMT}) of
-				ok ->
-					{ok, State#state{rk = [RoutingKey | RKs]}};
-				{error, Reason} ->
-					{error, Reason}
-			end;
-		{aborted, Reason} ->
+	RoutingKey = {NA, Keys, TMT},
+	case gtt:add_key(RoutingKey) of
+		ok ->
+			{ok, State#state{rk = [RoutingKey | RKs]}};
+		{error, Reason} ->
 			{error, Reason}
 	end.
 
@@ -327,18 +316,9 @@ erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
 		State :: term(),
 		Result :: any().
 %% @doc Called when ASP terminates.
-terminate(_Reason, #state{fsm = Fsm, rk = RKs} = State) ->
+terminate(_Reason, State) ->
 erlang:display({?MODULE, ?LINE, terminate, _Reason, State}),
-	F = fun(F, [RK | T]) ->
-				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
-				L2 = lists:keydelete(Fsm, #m3ua_as_asp.fsm, L1),
-				mnesia:write(AS#m3ua_as{state = active, asp = L2}),
-				mnesia:delete(m3ua_asp, Fsm, write),
-				F(F, T);
-			(_, []) ->
-				ok
-	end,
-	mnesia:transaction(F, [F, RKs]).
+	ok.
 
 %%----------------------------------------------------------------------
 %%  internal functions
