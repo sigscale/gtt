@@ -118,7 +118,7 @@ erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 			case catch m3ua:transfer(Fsm, 1, OPC, DPC, SLS, SIO, UnitData) of
 				{Error, Reason} when Error == error; Error == 'EXIT' ->
 					error_logger:error_report(["MTP-TRANSFER error",
-							{error, Reason}]);
+							{error, Reason}, {fsm, Fsm}, {dpc, DPC}]);
 				ok ->
 					ok
 			end
