@@ -346,8 +346,7 @@ erlang:display({?MODULE, ?LINE, terminate, _Reason, State}),
 
 -dialyzer([{nowarn_function, [match_head/0]}, no_contracts]).
 match_head() ->
-	#m3ua_as{routing_key = '$1', name = '_',
-			min_asp = '_', max_asp = '_', state = active, asp = '$2'}.
+	#m3ua_as{routing_key = '$1', asp = '$2', state = active, _ = '_'}.
 
 -dialyzer([{nowarn_function, [select/1]}, no_return]).
 select(MatchExpression) ->
