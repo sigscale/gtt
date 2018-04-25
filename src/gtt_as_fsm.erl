@@ -100,7 +100,7 @@ down({'M-ASP_DOWN', Node, EP, Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
 	case m3ua:asp_up(EP, Assoc) of
 		ok ->
-			{next_state, inactive, StateData};
+			{next_state, down, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -109,7 +109,7 @@ down({'M-ASP_DOWN', Node, EP, Assoc}, #statedata{role = sg,
 		when Node == node() ->
 	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
 		{ok, _RoutingContext} ->
-			{next_state, inactive, StateData};
+			{next_state, down, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -127,20 +127,15 @@ down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-down({'M-ASP_UP', Node, _EP, _Assoc},
-		#statedata{role = sg} = StateData) when Node == node() ->
-	{next_state, inactive, StateData};
-down({'M-ASP_INACTIVE', Node, EP, Assoc},
-		#statedata{role = as} = StateData) when Node == node() ->
-	case m3ua:asp_active(EP, Assoc) of
-		ok ->
+down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
+		{ok, _RoutingContext} ->
 			{next_state, inactive, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
-	end;
-down({'M-ASP_INACTIVE', Node, _EP, _Assoc},
-		#statedata{role = sg} = StateData) when Node == node() ->
-	{next_state, inactive, StateData}.
+	end.
 
 -spec inactive(Event, StateData) -> Result
 	when
@@ -157,6 +152,7 @@ down({'M-ASP_INACTIVE', Node, _EP, _Assoc},
 %% @private
 inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID},
 		#statedata{role = as} = StateData) when Node == node() ->
+	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
 	case m3ua:asp_status(EP, Assoc) of
 		inactive ->
 			case m3ua:asp_active(EP, Assoc) of
@@ -170,6 +166,7 @@ inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID},
 	end;
 inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID},
 		#statedata{role = as} = StateData) when Node == node() ->
+	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
 	case m3ua:asp_status(EP, Assoc) of
 		inactive ->
 			case m3ua:asp_active(EP, Assoc) of
@@ -180,6 +177,23 @@ inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID},
 			end;
 		_ ->
 			{next_state, active, StateData}
+	end;
+inactive({'M-ASP_DOWN', Node, EP, Assoc},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_up(EP, Assoc) of
+		ok ->
+			{next_state, inactive, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+inactive({'M-ASP_DOWN', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
+		{ok, _RoutingContext} ->
+			{next_state, inactive, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
 	end;
 inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
 		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
@@ -204,17 +218,10 @@ inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-inactive({'M-ASP_INACTIVE', Node, EP, Assoc}, StateData) when Node == node() ->
-	case m3ua:asp_active(EP, Assoc) of
-		ok ->
-			{next_state, inactive, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
+inactive({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
+	{next_state, inactive, StateData};
 inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
-	{next_state, active, StateData};
-inactive({'M-ASP_DOWN', Node, _EP, _Assoc}, StateData) when Node == node() ->
-	{next_state, inactive, StateData}.
+	{next_state, active, StateData}.
 
 -spec active(Event, StateData) -> Result
 	when
@@ -235,8 +242,26 @@ active({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_inactive, _AspID},
 active({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_pending, _AspID},
 		#statedata{role = as} = StateData) when Node == node() ->
 	{next_state, pending, StateData};
-active({'M-ASP_UP', EP, Assoc}, #statedata{role = as,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
+active({'M-ASP_DOWN', Node, EP, Assoc},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_up(EP, Assoc) of
+		ok ->
+			{next_state, active, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+active({'M-ASP_DOWN', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
+	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
+		{ok, _RoutingContext} ->
+			{next_state, active, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+active({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
 	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
 		{ok, _RoutingContext} ->
 			case m3ua:asp_active(EP, Assoc) of
@@ -248,32 +273,19 @@ active({'M-ASP_UP', EP, Assoc}, #statedata{role = as,
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-active({'M-ASP_UP', EP, Assoc}, #statedata{role = sg,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData) ->
+active({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
+		when Node == node() ->
 	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
 		{ok, _RoutingContext} ->
 			{next_state, active, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-active({'M-ASP_UP', Node, _EP, _Assoc},
-		#statedata{role = sg} = StateData) when Node == node() ->
-	{next_state, active, StateData};
-active({'M-ASP_INACTIVE', Node, EP, Assoc},
-		#statedata{role = as} = StateData) when Node == node() ->
-	case m3ua:asp_active(EP, Assoc) of
-		ok ->
-			{next_state, active, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-active({'M-ASP_INACTIVE', Node, _EP, _Assoc},
-		#statedata{role = sg} = StateData) when Node == node() ->
+active({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, active, StateData};
 active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
-	{next_state, pending, StateData, ?Tr};
-active({'M-ASP_DOWN', Node, _EP, _Assoc}, StateData) when Node == node() ->
-	{next_state, pending, StateData, ?Tr}.
+	{next_state, active, StateData}.
 
 -spec pending(Event, StateData) -> Result
 	when
