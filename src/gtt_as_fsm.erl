@@ -150,33 +150,19 @@ down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_inactive, _AspID},
+inactive({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
 		#statedata{role = as} = StateData) when Node == node() ->
 	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
 	case m3ua:asp_status(EP, Assoc) of
 		inactive ->
 			case m3ua:asp_active(EP, Assoc) of
 				ok ->
-					{next_state, inactive, StateData};
+					{next_state, as_state(AsState), StateData};
 				{error, Reason} ->
 					{stop, Reason, StateData}
 			end;
 		_ ->
-			{next_state, inactive, StateData}
-	end;
-inactive({'M-NOTIFY', Node, EP, Assoc, _RC, as_active, _AspID},
-		#statedata{role = as} = StateData) when Node == node() ->
-	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
-	case m3ua:asp_status(EP, Assoc) of
-		inactive ->
-			case m3ua:asp_active(EP, Assoc) of
-				ok ->
-					{next_state, active, StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		_ ->
-			{next_state, active, StateData}
+			{next_state, as_state(AsState), StateData}
 	end;
 inactive({'M-ASP_DOWN', Node, EP, Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
@@ -236,12 +222,20 @@ inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-active({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_inactive, _AspID},
+active({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
 		#statedata{role = as} = StateData) when Node == node() ->
-	{next_state, inactive, StateData};
-active({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_pending, _AspID},
-		#statedata{role = as} = StateData) when Node == node() ->
-	{next_state, pending, StateData};
+	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
+	case m3ua:asp_status(EP, Assoc) of
+		inactive ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, as_state(AsState), StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		_ ->
+			{next_state, as_state(AsState), StateData}
+	end;
 active({'M-ASP_DOWN', Node, EP, Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
 	case m3ua:asp_up(EP, Assoc) of
@@ -302,12 +296,20 @@ active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 %% @private
 pending(timeout, #statedata{} = StateData) ->
 	{next_state, down, StateData};
-pending({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_inactive, _AspID},
+pending({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
 		StateData) when Node == node() ->
-	{next_state, inactive, StateData};
-pending({'M-NOTIFY', Node, _EP, _Assoc, _RC, as_active, _AspID},
-		StateData) when Node == node() ->
-	{next_state, active, StateData}.
+	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
+	case m3ua:asp_status(EP, Assoc) of
+		inactive ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, as_state(AsState), StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		_ ->
+			{next_state, as_state(AsState), StateData}
+	end.
 
 -spec handle_event(Event, StateName, StateData) -> Result
 	when
@@ -399,4 +401,12 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+
+%% @hidden
+as_state(as_active) ->
+	active;
+as_state(as_inactive) ->
+	inactive;
+as_state(as_pending) ->
+	pending.
 
