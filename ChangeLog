@@ -1,3 +1,7 @@
+2018-04-25  Vance Shipley <vances@sigscale.org>
+
+	* corrections for asp/sgp state transitions
+
 2018-04-20  Vance Shipley <vances@sigscale.org>
 
 	* remove table updates from callbacks
