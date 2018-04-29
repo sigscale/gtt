@@ -112,7 +112,7 @@ delete_ep(Name) ->
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
 			ok;
-		{abort, Reason} ->
+		{aborted, Reason} ->
 			{error, Reason}
 	end.
 
@@ -198,7 +198,7 @@ delete_as(Name) ->
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
 			ok;
-		{abort, Reason} ->
+		{aborted, Reason} ->
 			{error, Reason}
 	end.
 
