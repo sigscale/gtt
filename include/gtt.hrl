@@ -23,14 +23,16 @@
 
 -record(gtt_ep,
 		{name :: ep_ref(),
-		sctp_role :: client | server,
-		m3ua_role :: sgp | asp,
+		sctp_role :: client | server | '_',
+		m3ua_role :: sgp | asp | '_',
 		callback :: atom() | #m3ua_fsm_cb{},
-		local :: {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
-		remote :: undefined | {Address :: inet:ip_address(), Port :: inet:port_number(), Options :: list()},
-		as = [] :: [AS :: as_ref()],
+		local :: {Address :: inet:ip_address(),
+				Port :: inet:port_number(), Options :: list()} | '_',
+		remote :: undefined | {Address :: inet:ip_address(),
+				Port :: inet:port_number(), Options :: list()} | '_',
+		as = [] :: [AS :: as_ref()] | '_',
 		node :: node(),
-		ep :: pid() | undefined}). % to be removed
+		ep :: pid() | undefined | '_'}). % to be removed
 
 -record(gtt_as,
 		{name :: as_ref(),
