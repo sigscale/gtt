@@ -23,7 +23,7 @@
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
 %% m3ua_asp_fsm callbacks
--export([init/5, transfer/8, pause/4, resume/4, status/4,
+-export([init/5, transfer/9, pause/4, resume/4, status/4,
 		register/4, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, terminate/2]).
 
@@ -63,14 +63,15 @@ erlang:display({?MODULE, ?LINE, init, Module, Fsm, EP, EpName, Assoc}),
 	{ok, #state{module = Module, fsm = Fsm,
 			ep = EP, ep_name = EpName, assoc = Assoc}}.
 
--spec transfer(Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
+-spec transfer(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
 		Stream :: pos_integer(),
-		RC :: pos_integer() | undefined,
-		OPC :: pos_integer(),
-		DPC :: pos_integer(),
-		SLS :: non_neg_integer(),
-		SIO :: non_neg_integer(),
+		RC :: 0..4294967295 | undefined,
+		OPC :: 0..4294967295,
+		DPC :: 0..4294967295,
+		NI :: byte(),
+		SI :: byte(),
+		SLS :: byte(),
 		Data :: binary(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
@@ -78,23 +79,23 @@ erlang:display({?MODULE, ?LINE, init, Module, Fsm, EP, EpName, Assoc}),
 		Reason :: term().
 %% @doc MTP-TRANSFER indication
 %%%  Called when data has arrived for the MTP user.
-transfer(Stream, RC, OPC, DPC, SLS, SIO, UnitData,
+transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 		#state{fsm = Fsm, ep = EP, ep_name = EpName, assoc = Assoc} = State)
 		when DPC =:= 2057; DPC =:= 2065 ->
-	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData),
+	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
 	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 2089, 6210, 2306]]),
-	transfer1(6209, SLS, SIO, UnitData, State, ASs);
-transfer(Stream, RC, OPC, DPC, SLS, SIO, UnitData,
+	transfer1(6209, 2, SI, SLS, UnitData, State, ASs);
+transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 		#state{fsm = Fsm, ep = EP, ep_name = EpName, assoc = Assoc} = State)
 		when DPC == 6209 ->
 	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2097, 2098]]),
-	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData),
-	transfer1(2057, SLS, SIO, UnitData, State, ASs).
+	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
+	transfer1(2057, 0, SI, SLS, UnitData, State, ASs).
 %% @hidden
-transfer1(_OPC, _SLS, _SIO, _UnitData, State, []) ->
+transfer1(_OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
 	{ok, State};
-transfer1(OPC, SLS, SIO, UnitData, State, ASs) ->
-erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
+transfer1(OPC, NI, SI, SLS, UnitData, State, ASs) ->
+erlang:display({?MODULE, ?LINE, OPC, NI, SI, SLS, UnitData}),
 	MatchHead = match_head(),
 	F1 = fun({NA, Keys, Mode}) ->
 				{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
@@ -115,7 +116,7 @@ erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 			ok;
 		Active ->
 			{DPC, Fsm} = lists:nth(rand:uniform(length(Active)), Active),
-			case catch m3ua:transfer(Fsm, 1, OPC, DPC, SLS, SIO, UnitData) of
+			case catch m3ua:transfer(Fsm, 1, OPC, DPC, NI, SI, SLS, UnitData) of
 				{Error, Reason} when Error == error; Error == 'EXIT' ->
 					error_logger:error_report(["MTP-TRANSFER error",
 							{error, Reason}, {fsm, Fsm}, {dpc, DPC}]);
@@ -126,7 +127,7 @@ erlang:display({?MODULE, ?LINE, OPC, SLS, SIO, UnitData}),
 	{ok, State}.
 
 %% @hidden
-log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData) ->
+log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData) ->
 	case sccp_codec:sccp(UnitData) of
 		#sccp_unitdata{called_party = #party_address{ri = CldRI,
 				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
@@ -137,7 +138,7 @@ log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData) ->
 			error_logger:info_report(["MTP-TRANSFER request",
 					{fsm, Fsm}, {ep, EP}, {name, EpName}, {assoc, Assoc},
 					{stream, Stream}, {rc, RC}, {opc, OPC},
-					{dpc, DPC}, {sls, SLS}, {sio, SIO},
+					{dpc, DPC}, {ni, NI}, {si, SI}, {sls, SLS},
 					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
 					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
 					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
@@ -152,7 +153,7 @@ log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, SLS, SIO, UnitData) ->
 			error_logger:info_report(["MTP-TRANSFER request",
 					{fsm, Fsm}, {ep, EP}, {name, EpName}, {assoc, Assoc},
 					{stream, Stream}, {rc, RC}, {opc, OPC},
-					{dpc, DPC}, {sls, SLS}, {sio, SIO},
+					{dpc, DPC}, {ni, NI}, {si, SI}, {sls, SLS},
 					{type, Type}, {return_cause, ReturnCause},
 					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
 					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
