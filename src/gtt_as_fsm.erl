@@ -104,38 +104,20 @@ down({'M-ASP_DOWN', Node, EP, Assoc},
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-down({'M-ASP_DOWN', Node, EP, Assoc}, #statedata{role = sg,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
-		when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
-			{next_state, down, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
-		when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
-			case m3ua:asp_active(EP, Assoc) of
-				ok ->
-					{next_state, inactive, StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
-		when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
+down({'M-ASP_DOWN', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, down, StateData};
+down({'M-ASP_UP', Node, EP, Assoc},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_active(EP, Assoc) of
+		ok ->
 			{next_state, inactive, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
-	end.
+	end;
+down({'M-ASP_UP', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, inactive, StateData}.
 
 -spec inactive(Event, StateData) -> Result
 	when
@@ -172,38 +154,20 @@ inactive({'M-ASP_DOWN', Node, EP, Assoc},
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-inactive({'M-ASP_DOWN', Node, EP, Assoc}, #statedata{role = sg,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
-		when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
+inactive({'M-ASP_DOWN', Node, _EP, _Assoc},
+		#statedata{role = as} = StateData) when Node == node() ->
+	{next_state, inactive, StateData};
+inactive({'M-ASP_UP', Node, EP, Assoc},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_active(EP, Assoc) of
+		ok ->
 			{next_state, inactive, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
-		when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
-			case m3ua:asp_active(EP, Assoc) of
-				ok ->
-					{next_state, inactive, StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
-		when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
-			{next_state, inactive, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
+inactive({'M-ASP_UP', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, inactive, StateData};
 inactive({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, inactive, StateData};
 inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
@@ -244,38 +208,20 @@ active({'M-ASP_DOWN', Node, EP, Assoc},
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-active({'M-ASP_DOWN', Node, EP, Assoc}, #statedata{role = sg,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
-		when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
+active({'M-ASP_DOWN', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, active, StateData};
+active({'M-ASP_UP', Node, EP, Assoc},
+		#statedata{role = as} = StateData) when Node == node() ->
+	case m3ua:asp_active(EP, Assoc) of
+		ok ->
 			{next_state, active, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-active({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
-		when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
-			case m3ua:asp_active(EP, Assoc) of
-				ok ->
-					{next_state, active, StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
-active({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
-		name = Name, na = NA, keys = Keys, mode = Mode} = StateData)
-		when Node == node() ->
-	case m3ua:register(EP, Assoc, NA, Keys, Mode, Name) of
-		{ok, _RoutingContext} ->
-			{next_state, active, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
+active({'M-ASP_UP', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, active, StateData};
 active({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, active, StateData};
 active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
