@@ -1,3 +1,8 @@
+2018-04-30  Vance Shipley <vances@sigscale.org>
+
+	* remove registration from as fsm
+	* transfer api now includes network indicator
+
 2018-04-25  Vance Shipley <vances@sigscale.org>
 
 	* corrections for asp/sgp state transitions
