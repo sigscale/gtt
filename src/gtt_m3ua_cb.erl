@@ -244,7 +244,7 @@ asp_up(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_up, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
-				gen_fsm:send_event(AS, {'M-ASP_UP', node(), EP, Assoc})
+				catch gen_fsm:send_event(AS, {'M-ASP_UP', node(), EP, Assoc})
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
@@ -260,7 +260,7 @@ asp_down(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_down, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
-				gen_fsm:send_event(AS, {'M-ASP_DOWN', node(), EP, Assoc})
+				catch gen_fsm:send_event(AS, {'M-ASP_DOWN', node(), EP, Assoc})
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
@@ -287,7 +287,7 @@ asp_inactive(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_inactive, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
-				gen_fsm:send_event(AS, {'M-ASP_INACTIVE', node(), EP, Assoc})
+				catch gen_fsm:send_event(AS, {'M-ASP_INACTIVE', node(), EP, Assoc})
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
@@ -310,7 +310,7 @@ notify(RC, Status, AspID, #state{module = m3ua_asp_fsm,
 erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
-				gen_fsm:send_event(AS, {'M-NOTIFY', node(), EP, Assoc, RC, Status, AspID})
+				catch gen_fsm:send_event(AS, {'M-NOTIFY', node(), EP, Assoc, RC, Status, AspID})
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
