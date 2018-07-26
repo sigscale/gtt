@@ -5,7 +5,7 @@
 ##
 ## Boilerplate:  standard boilerplate code
 ##
-AC_INIT([gtt], [1.3], [issues@sigscale.org])
+AC_INIT([gtt], [1.3.1], [issues@sigscale.org])
 AC_COPYRIGHT([Copyright (c) 2018 SigScale Global Inc.])
 AC_PREREQ(2.63)
 AC_CONFIG_SRCDIR([src/gtt_app.erl])
@@ -97,6 +97,5 @@ AC_ERLANG_CHECK_LIB([sigscale_mibs], [], [AC_MSG_ERROR([sigscale_mibs was not fo
 ## Output:  create output files
 ## 
 AC_OUTPUT([Makefile include/Makefile ebin/Makefile doc/Makefile
-		priv/Makefile priv/www/Makefile priv/mibs/Makefile mibs/Makefile
 		test/Makefile $PACKAGE_NAME.rel sys.config])
 
