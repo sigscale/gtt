@@ -81,16 +81,22 @@ erlang:display({?MODULE, ?LINE, init, Module, Fsm, EP, EpName, Assoc}),
 %%%  Called when data has arrived for the MTP user.
 transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 		#state{fsm = Fsm, ep = EP, ep_name = EpName, assoc = Assoc} = State)
-		when DPC =:= 2057; DPC =:= 2065 ->
+%		when DPC =:= 2057; DPC =:= 2065 ->
+		when DPC =:= 2073; DPC =:= 2081 ->
 	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
-	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 2089, 6210, 2306]]),
-	transfer1(6209, 2, SI, SLS, UnitData, State, ASs);
+%	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 2089, 6210, 2306]]),
+%	transfer1(6209, 2, SI, SLS, UnitData, State, ASs);
+	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2305]]),
+	transfer1(2058, 2, SI, SLS, UnitData, State, ASs);
 transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 		#state{fsm = Fsm, ep = EP, ep_name = EpName, assoc = Assoc} = State)
-		when DPC == 6209 ->
+%		when DPC == 6209 ->
+		when DPC == 2058 ->
 	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2097, 2098]]),
 	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
-	transfer1(2057, 0, SI, SLS, UnitData, State, ASs).
+%	transfer1(2057, 0, SI, SLS, UnitData, State, ASs).
+%	transfer1(2073, 0, SI, SLS, UnitData, State, ASs).
+	transfer1(2081, 0, SI, SLS, UnitData, State, ASs).
 %% @hidden
 transfer1(_OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
 	{ok, State};

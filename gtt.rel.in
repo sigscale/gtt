@@ -5,4 +5,7 @@
 	{mnesia, "@ERLANG_LIB_VER_mnesia@"},
 	{m3ua, "@ERLANG_LIB_VER_m3ua@"},
 	{sccp, "@ERLANG_LIB_VER_sccp@"},
+	{inets, "@ERLANG_LIB_VER_inets@"},
+	{snmp, "@ERLANG_LIB_VER_snmp@"},
+	{sigscale_mibs, "@ERLANG_LIB_VER_sigscale_mibs@"},
 	{@PACKAGE@, "@VERSION@"}]}.

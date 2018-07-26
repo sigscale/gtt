@@ -45,12 +45,19 @@ appdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION
 erldir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/src
 beamdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/ebin
 eincludedir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/include
+emibdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/priv/mibs
+mibsdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/mibs
+wwwdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/priv/www
 docdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/doc
 reldir=$ERLANG_INSTALL_LIB_DIR/../releases
 AC_SUBST(appdir)
 AC_SUBST(erldir)
 AC_SUBST(beamdir)
 AC_SUBST(eincludedir)
+AC_SUBST(emibdir)
+AC_SUBST(mibsdir)
+AC_SUBST(wwwdir)
+
 AC_SUBST(reldir)
 
 
@@ -64,6 +71,10 @@ AC_ERLANG_CHECK_LIB([sasl], [], [AC_MSG_ERROR([sasl was not found!])])
 AC_ERLANG_CHECK_LIB([mnesia], [], [AC_MSG_ERROR([mnesia was not found!])])
 AC_ERLANG_CHECK_LIB([m3ua], [], [AC_MSG_ERROR([m3ua was not found!])])
 AC_ERLANG_CHECK_LIB([sccp], [], [AC_MSG_ERROR([sccp was not found!])])
+AC_ERLANG_CHECK_LIB([compiler], [], [AC_MSG_ERROR([compiler was not found!])])
+AC_ERLANG_CHECK_LIB([inets], [], [AC_MSG_ERROR([inets was not found!])])
+AC_ERLANG_CHECK_LIB([snmp], [], [AC_MSG_ERROR([snmp was not found!])])
+AC_ERLANG_CHECK_LIB([sigscale_mibs], [], [AC_MSG_ERROR([sigscale_mibs was not found!])])
 
 
 ##
@@ -85,7 +96,7 @@ AC_ERLANG_CHECK_LIB([sccp], [], [AC_MSG_ERROR([sccp was not found!])])
 ##
 ## Output:  create output files
 ## 
-
 AC_OUTPUT([Makefile include/Makefile ebin/Makefile doc/Makefile
-		test/Makefile gtt.rel sys.config])
+		priv/Makefile priv/www/Makefile priv/mibs/Makefile mibs/Makefile
+		test/Makefile $PACKAGE_NAME.rel sys.config])
 
