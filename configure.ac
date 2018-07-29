@@ -45,8 +45,6 @@ appdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION
 erldir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/src
 beamdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/ebin
 eincludedir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/include
-emibdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/priv/mibs
-mibsdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/mibs
 wwwdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/priv/www
 docdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/doc
 reldir=$ERLANG_INSTALL_LIB_DIR/../releases
@@ -54,10 +52,7 @@ AC_SUBST(appdir)
 AC_SUBST(erldir)
 AC_SUBST(beamdir)
 AC_SUBST(eincludedir)
-AC_SUBST(emibdir)
-AC_SUBST(mibsdir)
 AC_SUBST(wwwdir)
-
 AC_SUBST(reldir)
 
 
@@ -97,5 +92,6 @@ AC_ERLANG_CHECK_LIB([sigscale_mibs], [], [AC_MSG_ERROR([sigscale_mibs was not fo
 ## Output:  create output files
 ## 
 AC_OUTPUT([Makefile include/Makefile ebin/Makefile doc/Makefile
+		priv/Makefile priv/www/Makefile
 		test/Makefile $PACKAGE_NAME.rel sys.config])
 
