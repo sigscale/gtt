@@ -27,6 +27,9 @@
 		register/4, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, terminate/2]).
 
+%% gtt_m3ua_cb private API
+-export([select_asp/2]).
+
 -include("gtt.hrl").
 -include_lib("sccp/include/sccp.hrl").
 
@@ -36,7 +39,10 @@
 		ep :: pid(),
 		ep_name :: term(),
 		assoc :: pos_integer(),
-		rk = [] :: [routing_key()]}).
+		rk = [] :: [routing_key()],
+		weights = [] :: [{Fsm :: pid(), Weight :: non_neg_integer()}]}).
+
+-define(TRANSFERWAIT, 1000).
 
 %%----------------------------------------------------------------------
 %%  The gtt_m3ua_cb public API
@@ -95,12 +101,13 @@ transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2097, 2098]]),
 	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
 %	transfer1(2057, 0, SI, SLS, UnitData, State, ASs).
+%	transfer1(2065, 0, SI, SLS, UnitData, State, ASs).
 %	transfer1(2073, 0, SI, SLS, UnitData, State, ASs).
 	transfer1(2081, 0, SI, SLS, UnitData, State, ASs).
 %% @hidden
 transfer1(_OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
 	{ok, State};
-transfer1(OPC, NI, SI, SLS, UnitData, State, ASs) ->
+transfer1(OPC, NI, SI, SLS, UnitData, #state{weights = Weights} = State, ASs) ->
 erlang:display({?MODULE, ?LINE, OPC, NI, SI, SLS, UnitData}),
 	MatchHead = match_head(),
 	F1 = fun({NA, Keys, Mode}) ->
@@ -119,18 +126,30 @@ erlang:display({?MODULE, ?LINE, OPC, NI, SI, SLS, UnitData}),
 	end,
 	case F2(ASPs, []) of
 		[] ->
-			ok;
-		Active ->
-			{DPC, Fsm} = lists:nth(rand:uniform(length(Active)), Active),
-			case catch m3ua:transfer(Fsm, 1, OPC, DPC, NI, SI, SLS, UnitData) of
+			{ok, State#state{weights = []}};
+		ActiveAsps ->
+			{DPC, Fsm, ActiveWeights} = ?MODULE:select_asp(ActiveAsps, Weights),
+			Tstart = erlang:monotonic_time(),
+			Delay = case catch m3ua:transfer(Fsm, 1, OPC, DPC,
+					NI, SI, SLS, UnitData, ?TRANSFERWAIT) of
+				{error, timeout} ->
+					Tend = erlang:monotonic_time() - Tstart,
+					error_logger:warning_report(["MTP-TRANSFER timeout",
+							{error, timeout}, {fsm, Fsm}, {dpc, DPC},
+							{weights, ActiveWeights}]),
+					Tend;
 				{Error, Reason} when Error == error; Error == 'EXIT' ->
+					Tend = erlang:monotonic_time() - Tstart,
 					error_logger:error_report(["MTP-TRANSFER error",
-							{error, Reason}, {fsm, Fsm}, {dpc, DPC}]);
+							{error, Reason}, {fsm, Fsm}, {dpc, DPC},
+							{weights, ActiveWeights}]),
+					Tend;
 				ok ->
-					ok
-			end
-	end,
-	{ok, State}.
+					erlang:monotonic_time() - Tstart
+			end,
+			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, {Fsm, Delay}),
+			{ok, State#state{weights = NewWeights}}
+	end.
 
 %% @hidden
 log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData) ->
@@ -330,6 +349,58 @@ erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
 terminate(_Reason, State) ->
 erlang:display({?MODULE, ?LINE, terminate, _Reason, State}),
 	ok.
+
+%%----------------------------------------------------------------------
+%%  private API functions
+%%----------------------------------------------------------------------
+
+-spec select_asp(ActiveAsps, Weights) -> Result
+	when
+		ActiveAsps :: [{DPC, Fsm}],
+		DPC :: pos_integer(),
+		Fsm :: pid(),
+		Weights :: [{Fsm, Weight}],
+		Weight :: non_neg_integer(),
+		ActiveWeights :: [{Fsm, Weight}],
+		Result :: {DPC, Fsm, ActiveWeights}.
+%% @doc Select lowest weight ASP.
+select_asp(ActiveAsps, Weights) ->
+	ActiveWeights = select_asp1(Weights, ActiveAsps, []),
+	Fsm = case hd(ActiveWeights) of
+		{_, 0} ->
+			F = fun({_, 0}) ->
+						true;
+					(_) ->
+						false
+			end,
+			NewFsms = lists:takewhile(F, ActiveWeights),
+			{P, _} = lists:nth(rand:uniform(length(NewFsms)), NewFsms),
+			P;
+		{P, _} ->
+			P
+	end,
+	{DPC, Fsm} = lists:keyfind(Fsm, 2, ActiveAsps),
+	{DPC, Fsm, ActiveWeights}.
+%% @hidden
+select_asp1([{Fsm, _} = H | T] = _Weights, ActiveAsps, Acc) ->
+	case lists:keymember(Fsm, 2, ActiveAsps) of
+		true ->
+			select_asp1(T, ActiveAsps, [H | Acc]);
+		false ->
+			select_asp1(T, ActiveAsps, Acc)
+	end;
+select_asp1([] = _Weights, ActiveAsps, Acc) ->
+	select_asp2(ActiveAsps, lists:reverse(Acc)).
+%% @hidden
+select_asp2([{_, Fsm} | T] = _ActiveAsps, Weights) ->
+	case lists:keymember(Fsm, 1, Weights) of
+		true ->
+			select_asp2(T, Weights);
+		false ->
+			select_asp2(T, [{Fsm, 0} | Weights])
+	end;
+select_asp2([] = _ActiveAsps, Weights) ->
+	lists:keysort(2, Weights).
 
 %%----------------------------------------------------------------------
 %%  internal functions
