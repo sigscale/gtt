@@ -1,3 +1,9 @@
+2018-08-03  Vance Shipley <vances@sigscale.org>
+
+	* decrease mtp transfer wait time to 1s
+	* track mtp transfer response times by pid
+	* select most responsive pid
+
 2018-04-30  Vance Shipley <vances@sigscale.org>
 
 	* remove registration from as fsm
