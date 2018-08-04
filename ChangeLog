@@ -1,3 +1,7 @@
+2018-08-04  Vance Shipley <vances@sigscale.org>
+
+	* timestamp and age weights
+
 2018-08-03  Vance Shipley <vances@sigscale.org>
 
 	* decrease mtp transfer wait time to 1s
