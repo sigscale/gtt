@@ -40,9 +40,12 @@
 		ep_name :: term(),
 		assoc :: pos_integer(),
 		rk = [] :: [routing_key()],
-		weights = [] :: [{Fsm :: pid(), Weight :: non_neg_integer()}]}).
+		weights = [] :: [{Fsm :: pid(),
+				Weight :: non_neg_integer(),
+				Timestamp :: pos_integer()}]}).
 
 -define(TRANSFERWAIT, 1000).
+-define(RECOVERYWAIT, 60000).
 
 %%----------------------------------------------------------------------
 %%  The gtt_m3ua_cb public API
@@ -147,7 +150,8 @@ erlang:display({?MODULE, ?LINE, OPC, NI, SI, SLS, UnitData}),
 				ok ->
 					erlang:monotonic_time() - Tstart
 			end,
-			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, {Fsm, Delay}),
+			Weight = {Fsm, Delay, Tstart},
+			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, Weight),
 			{ok, State#state{weights = NewWeights}}
 	end.
 
@@ -357,49 +361,58 @@ erlang:display({?MODULE, ?LINE, terminate, _Reason, State}),
 -spec select_asp(ActiveAsps, Weights) -> Result
 	when
 		ActiveAsps :: [{DPC, Fsm}],
-		DPC :: pos_integer(),
+		DPC :: 0..4294967295,
 		Fsm :: pid(),
-		Weights :: [{Fsm, Weight}],
+		Weights :: [{Fsm, Weight, Timestamp}],
 		Weight :: non_neg_integer(),
-		ActiveWeights :: [{Fsm, Weight}],
+		Timestamp :: pos_integer(),
+		ActiveWeights :: [{Fsm, Weight, Timestamp}],
 		Result :: {DPC, Fsm, ActiveWeights}.
-%% @doc Select lowest weight ASP.
+%% @doc Select destination ASP with lowest weight.
 select_asp(ActiveAsps, Weights) ->
-	ActiveWeights = select_asp1(Weights, ActiveAsps, []),
+	Now = erlang:monotonic_time(),
+	ActiveWeights = select_asp1(Weights, ActiveAsps, Now, []),
 	Fsm = case hd(ActiveWeights) of
-		{_, 0} ->
-			F = fun({_, 0}) ->
+		{_, 0, _} ->
+			F = fun({_, 0, _}) ->
 						true;
 					(_) ->
 						false
 			end,
 			NewFsms = lists:takewhile(F, ActiveWeights),
-			{P, _} = lists:nth(rand:uniform(length(NewFsms)), NewFsms),
+			Len = length(NewFsms),
+			{P, _, _} = lists:nth(rand:uniform(Len), NewFsms),
 			P;
-		{P, _} ->
+		{P, N, _} when N >= ?TRANSFERWAIT ->
+			Len = length(ActiveWeights),
+			{P, _, _} = lists:nth(rand:uniform(Len), ActiveWeights),
+			P;
+		{P, _, _} ->
 			P
 	end,
 	{DPC, Fsm} = lists:keyfind(Fsm, 2, ActiveAsps),
 	{DPC, Fsm, ActiveWeights}.
 %% @hidden
-select_asp1([{Fsm, _} = H | T] = _Weights, ActiveAsps, Acc) ->
+select_asp1([{Fsm, _, Timestamp} = H | T] = _Weights, ActiveAsps, Now, Acc) ->
 	case lists:keymember(Fsm, 2, ActiveAsps) of
+		true when (Now - Timestamp) > ?RECOVERYWAIT ->
+			select_asp1(T, ActiveAsps, Now, [{Fsm, 1, Now} | Acc]);
 		true ->
-			select_asp1(T, ActiveAsps, [H | Acc]);
+			select_asp1(T, ActiveAsps, Now, [H | Acc]);
 		false ->
-			select_asp1(T, ActiveAsps, Acc)
+			select_asp1(T, ActiveAsps, Now, Acc)
 	end;
-select_asp1([] = _Weights, ActiveAsps, Acc) ->
-	select_asp2(ActiveAsps, lists:reverse(Acc)).
+select_asp1([] = _Weights, ActiveAsps, Now, Acc) ->
+	select_asp2(ActiveAsps, Now, lists:reverse(Acc)).
 %% @hidden
-select_asp2([{_, Fsm} | T] = _ActiveAsps, Weights) ->
+select_asp2([{_, Fsm} | T] = _ActiveAsps, Now, Weights) ->
 	case lists:keymember(Fsm, 1, Weights) of
 		true ->
-			select_asp2(T, Weights);
+			select_asp2(T, Now, Weights);
 		false ->
-			select_asp2(T, [{Fsm, 0} | Weights])
+			select_asp2(T, Now, [{Fsm, 0, Now} | Weights])
 	end;
-select_asp2([] = _ActiveAsps, Weights) ->
+select_asp2([] = _ActiveAsps, _Now, Weights) ->
 	lists:keysort(2, Weights).
 
 %%----------------------------------------------------------------------
