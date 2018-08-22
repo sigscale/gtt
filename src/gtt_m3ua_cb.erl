@@ -24,7 +24,7 @@
 
 %% m3ua_asp_fsm callbacks
 -export([init/5, transfer/9, pause/4, resume/4, status/4,
-		register/4, asp_up/1, asp_down/1, asp_active/1,
+		register/5, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, terminate/2]).
 
 %% gtt_m3ua_cb private API
@@ -77,8 +77,8 @@ erlang:display({?MODULE, ?LINE, init, Module, Fsm, EP, EpName, Assoc}),
 	when
 		Stream :: pos_integer(),
 		RC :: 0..4294967295 | undefined,
-		OPC :: 0..4294967295,
-		DPC :: 0..4294967295,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
 		NI :: byte(),
 		SI :: byte(),
 		SLS :: byte(),
@@ -95,24 +95,24 @@ transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 		when DPC =:= 2073; DPC =:= 2081 ->
 	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
 %	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 2089, 6210, 2306]]),
-%	transfer1(6209, 2, SI, SLS, UnitData, State, ASs);
+%	transfer1(RC, 6209, 2, SI, SLS, UnitData, State, ASs);
 	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2305]]),
-	transfer1(2058, 2, SI, SLS, UnitData, State, ASs);
+	transfer1(RC, 2058, 2, SI, SLS, UnitData, State, ASs);
 transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 		#state{fsm = Fsm, ep = EP, ep_name = EpName, assoc = Assoc} = State)
 %		when DPC == 6209 ->
 		when DPC == 2058 ->
 	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2097, 2098]]),
 	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
-%	transfer1(2057, 0, SI, SLS, UnitData, State, ASs).
-%	transfer1(2065, 0, SI, SLS, UnitData, State, ASs).
-%	transfer1(2073, 0, SI, SLS, UnitData, State, ASs).
-	transfer1(2081, 0, SI, SLS, UnitData, State, ASs).
+%	transfer1(RC, 2057, 0, SI, SLS, UnitData, State, ASs).
+%	transfer1(RC, 2065, 0, SI, SLS, UnitData, State, ASs).
+%	transfer1(RC, 2073, 0, SI, SLS, UnitData, State, ASs).
+	transfer1(RC, 2081, 0, SI, SLS, UnitData, State, ASs).
 %% @hidden
-transfer1(_OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
+transfer1(_RC, _OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
 	{ok, State};
-transfer1(OPC, NI, SI, SLS, UnitData, #state{weights = Weights} = State, ASs) ->
-erlang:display({?MODULE, ?LINE, OPC, NI, SI, SLS, UnitData}),
+transfer1(RC, OPC, NI, SI, SLS, UnitData, #state{weights = Weights} = State, ASs) ->
+erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 	MatchHead = match_head(),
 	F1 = fun({NA, Keys, Mode}) ->
 				{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
@@ -134,7 +134,7 @@ erlang:display({?MODULE, ?LINE, OPC, NI, SI, SLS, UnitData}),
 		ActiveAsps ->
 			{DPC, Fsm, ActiveWeights} = ?MODULE:select_asp(ActiveAsps, Weights),
 			Tstart = erlang:monotonic_time(),
-			Delay = case catch m3ua:transfer(Fsm, 1, OPC, DPC,
+			Delay = case catch m3ua:transfer(Fsm, 1, undefined, OPC, DPC,
 					NI, SI, SLS, UnitData, ?TRANSFERWAIT) of
 				{error, timeout} ->
 					Tend = erlang:monotonic_time() - Tstart,
@@ -196,8 +196,8 @@ erlang:display({?MODULE, ?LINE, Other})
 	when
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RC :: pos_integer() | undefined,
-		DPC :: pos_integer(),
+		RC :: 0..4294967295 | undefined,
+		DPC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -211,9 +211,9 @@ erlang:display({?MODULE, ?LINE, pause, _Stream, _RC, _DPCs, State}),
 -spec resume(Stream, RC, DPCs, State) -> Result
 	when
 		Stream :: pos_integer(),
+		RC :: 0..4294967295 | undefined,
 		DPCs :: [DPC],
-		RC :: pos_integer() | undefined,
-		DPC :: pos_integer(),
+		DPC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -228,9 +228,9 @@ erlang:display({?MODULE, ?LINE, resume, _Stream, _RC, _DPCs, State}),
 -spec status(Stream, RC, DPCs, State) -> Result
 	when
 		Stream :: pos_integer(),
+		RC :: 0..4294967295 | undefined,
 		DPCs :: [DPC],
-		RC :: pos_integer() | undefined,
-		DPC :: pos_integer(),
+		DPC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -241,9 +241,10 @@ status(_Stream, _RC, _DPCs, State) ->
 erlang:display({?MODULE, ?LINE, status, _Stream, _RC, _DPCs, State}),
 	{ok, State}.
 
--spec register(NA, Keys, TMT, State) -> Result
+-spec register(RC, NA, Keys, TMT, State) -> Result
 	when
-		NA :: pos_integer(),
+		RC :: 0..4294967295 | undefined,
+		NA :: 0..4294967295 | undefined,
 		Keys :: [key()],
 		TMT :: tmt(),
 		State :: term(),
@@ -253,8 +254,8 @@ erlang:display({?MODULE, ?LINE, status, _Stream, _RC, _DPCs, State}),
 %%  @doc Called when Registration Response message with a
 %%		registration status of successful from its peer or
 %%		successfully processed an incoming Registration Request message.
-register(NA, Keys, TMT, #state{rk = RKs} = State) ->
-erlang:display({?MODULE, ?LINE, register, NA, Keys, TMT, State}),
+register(RC, NA, Keys, TMT, #state{rk = RKs} = State) ->
+erlang:display({?MODULE, ?LINE, register, RC, NA, Keys, TMT, State}),
 	RoutingKey = {NA, Keys, TMT},
 	case gtt:add_key(RoutingKey) of
 		ok ->
@@ -324,7 +325,7 @@ erlang:display({?MODULE, ?LINE, asp_inactive, State}),
 
 -spec notify(RC, Status, AspID, State) -> Result
 	when
-		RC :: undefined | pos_integer(),
+		RC :: 0..4294967295 | undefined,
 		Status :: as_inactive | as_active | as_pending
 				| insufficient_asp_active | alternate_asp_active
 				| asp_failure,
@@ -432,7 +433,7 @@ select_asp2([] = _ActiveAsps, _Now, Weights) ->
 
 -dialyzer([{nowarn_function, [match_head/0]}, no_contracts]).
 match_head() ->
-	#m3ua_as{routing_key = '$1', asp = '$2', state = active, _ = '_'}.
+	#m3ua_as{rk = '$1', asp = '$2', state = active, _ = '_'}.
 
 -dialyzer([{nowarn_function, [select/1]}, no_return]).
 select(MatchExpression) ->
