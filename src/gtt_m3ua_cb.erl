@@ -45,7 +45,8 @@
 				Timestamp :: pos_integer()}]}).
 
 -define(TRANSFERWAIT, 1000).
--define(RECOVERYWAIT, 60000).
+-define(BLOCKTIME, 100).
+-define(RECOVERYWAIT, 10000).
 
 %%----------------------------------------------------------------------
 %%  The gtt_m3ua_cb public API
@@ -372,23 +373,33 @@ erlang:display({?MODULE, ?LINE, terminate, _Reason, State}),
 select_asp(ActiveAsps, Weights) ->
 	Now = erlang:monotonic_time(),
 	ActiveWeights = select_asp1(Weights, ActiveAsps, Now, []),
-	Fsm = case hd(ActiveWeights) of
-		{_, 0, _} ->
-			F = fun({_, 0, _}) ->
+	Fblock = fun({_, N, _}) when N < ?BLOCKTIME ->
+				true;
+			(_) ->
+				false
+	end,
+	Fsm = case lists:takewhile(Fblock, ActiveWeights) of
+		[{Pid, _, _}] ->
+			Pid;
+		[] ->
+			Ftimeout = fun({_, N, _}) when N < ?TRANSFERWAIT->
 						true;
 					(_) ->
 						false
 			end,
-			NewFsms = lists:takewhile(F, ActiveWeights),
-			Len = length(NewFsms),
-			{P, _, _} = lists:nth(rand:uniform(Len), NewFsms),
-			P;
-		{P, N, _} when N >= ?TRANSFERWAIT ->
-			Len = length(ActiveWeights),
-			{P, _, _} = lists:nth(rand:uniform(Len), ActiveWeights),
-			P;
-		{P, _, _} ->
-			P
+			case lists:takewhile(Ftimeout, ActiveWeights) of
+				[] ->
+					{Pid, _, _} = hd(ActiveWeights),
+					Pid;
+				Responding ->
+					Len = length(Responding),
+					{Pid, _, _} = lists:nth(rand:uniform(Len), Responding),
+					Pid
+			end;
+		NonBlocking ->
+			Len = length(NonBlocking),
+			{Pid, _, _} = lists:nth(rand:uniform(Len), NonBlocking),
+			Pid
 	end,
 	{DPC, Fsm} = lists:keyfind(Fsm, 2, ActiveAsps),
 	{DPC, Fsm, ActiveWeights}.
