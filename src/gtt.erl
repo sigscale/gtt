@@ -23,7 +23,7 @@
 %% export the public API
 -export([add_ep/7, add_ep/8, delete_ep/1, get_ep/0, find_ep/1,
 		stat_ep/1, stat_ep/2]).
--export([add_as/7, delete_as/1, get_as/0, find_as/1]).
+-export([add_as/8, delete_as/1, get_as/0, find_as/1]).
 -export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
 		find_pc/3, find_pc/4]).
 
@@ -159,7 +159,7 @@ find_ep(Name) ->
 		Key :: {DPC, SIs, OPCs},
 		DPC :: 0..16777215,
 		SIs :: [SI],
-		SI :: byte()
+		SI :: byte(),
 		OPCs :: [OPC],
 		OPC :: 0..16777215,
 		Mode :: override | loadshare | broadcast,
@@ -173,7 +173,7 @@ add_as(Name, Role, RC, NA, Keys, Mode, MinAsp, MaxAsp)
 		is_integer(MaxAsp), ((Mode == override) orelse (Mode == loadshare)
 		orelse (Mode == broadcast)), ((Role == as) orelse (Role == sg)),
 		(((Role == sg) and is_integer(RC)) or ((Role == as)
-		and ((RC == undefined) or is_integer(RC))) ->
+		and ((RC == undefined) or is_integer(RC)))) ->
 	F = fun() ->
 			GttAs = #gtt_as{name = Name, role = Role, rc = RC,
 					na = NA, keys = Keys, mode = Mode,
