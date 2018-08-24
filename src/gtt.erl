@@ -174,14 +174,20 @@ add_as(Name, Role, RC, NA, Keys, Mode, MinAsp, MaxAsp)
 		orelse (Mode == broadcast)), ((Role == as) orelse (Role == sg)),
 		(((Role == sg) and is_integer(RC)) or ((Role == as)
 		and ((RC == undefined) or is_integer(RC)))) ->
-	F = fun() ->
+	Fas = fun() ->
 			GttAs = #gtt_as{name = Name, role = Role, rc = RC,
 					na = NA, keys = Keys, mode = Mode,
 					min_asp = MinAsp, max_asp = MaxAsp},
 			mnesia:write(gtt_as, GttAs, write),
+			RK = {NA, Keys, Mode},
+			Fpc =fun({DPC, SIs, OPCs}) ->
+				PC = #gtt_pc{dpc = DPC, na = NA, si = SIs, opc = OPCs, as = RK},
+				mnesia:write(PC)
+			end,
+			lists:foreach(Fpc, Keys),
 			GttAs
 	end,
-	case mnesia:transaction(F) of
+	case mnesia:transaction(Fas) of
 		{atomic, AS} ->
 			{ok, AS};
 		{aborted, Reason} ->
