@@ -303,8 +303,13 @@ erlang:display({?MODULE, ?LINE, asp_down, State}),
 %% @doc Called when ASP reports that it has received an ASP Active
 %%		Ack message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Active message from its peer.
-asp_active(State) ->
+asp_active(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 erlang:display({?MODULE, ?LINE, asp_active, State}),
+	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
+	F = fun(AS) ->
+				catch gen_fsm:send_event(AS, {'M-ASP_ACTIVE', node(), EP, Assoc})
+	end,
+	lists:foreach(F, ASs),
 	{ok, State}.
 
 -spec asp_inactive(State) -> Result

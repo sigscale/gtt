@@ -37,8 +37,10 @@
 -record(statedata,
 		{name :: as_ref(),
 		role :: as | sg,
-		na :: pos_integer(),
-		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
+		rc :: undefined | 0..4294967295,
+		na :: undefined | 0..4294967295,
+		keys :: [{DPC :: 0..16777215,
+				[SI :: byte()], [OPC :: 0..16777215]}],
 		mode :: override | loadshare | broadcast,
 		min :: pos_integer(),
 		max :: pos_integer()}).
@@ -72,12 +74,12 @@
 init([Name] = _Args) ->
 	F = fun() -> mnesia:read(gtt_as, Name, read) end,
 	case mnesia:transaction(F) of
-		{atomic, [#gtt_as{name = Name,
-				role = Role, na = NA, keys = Keys,
+		{atomic, [#gtt_as{name = Name, role = Role,
+				rc = RC, na = NA, keys = Keys,
 				mode = Mode, min_asp = Min, max_asp = Max}]} ->
-			StateData = #statedata{name = Name,
-					role = Role, na = NA, keys = Keys,
-					mode = Mode, min = Min, max = Max},
+			StateData = #statedata{name = Name, role = Role,
+					rc = RC, na = NA, keys = Keys, mode = Mode,
+					min = Min, max = Max},
 			{ok, down, StateData};
 		{aborted, Reason} ->
 			{stop, Reason}
@@ -107,17 +109,44 @@ down({'M-ASP_DOWN', Node, EP, Assoc},
 down({'M-ASP_DOWN', Node, _EP, _Assoc},
 		#statedata{role = sg} = StateData) when Node == node() ->
 	{next_state, down, StateData};
-down({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{role = as} = StateData) when Node == node() ->
-	case m3ua:asp_active(EP, Assoc) of
-		ok ->
-			{next_state, inactive, StateData};
+down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = undefined, na = NA, keys = Keys,
+		mode = Mode} = StateData) when Node == node() ->
+	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			NewStateData = StateData#statedata{rc = RC},
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, NewStateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-down({'M-ASP_UP', Node, _EP, _Assoc},
-		#statedata{role = sg} = StateData) when Node == node() ->
-	{next_state, inactive, StateData}.
+down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			{next_state, inactive, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
 -spec inactive(Event, StateData) -> Result
 	when
@@ -157,17 +186,44 @@ inactive({'M-ASP_DOWN', Node, EP, Assoc},
 inactive({'M-ASP_DOWN', Node, _EP, _Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
 	{next_state, inactive, StateData};
-inactive({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{role = as} = StateData) when Node == node() ->
-	case m3ua:asp_active(EP, Assoc) of
-		ok ->
+inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = undefined, na = NA, keys = Keys,
+		mode = Mode} = StateData) when Node == node() ->
+	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			NewStateData = StateData#statedata{rc = RC},
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, NewStateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
 			{next_state, inactive, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-inactive({'M-ASP_UP', Node, _EP, _Assoc},
-		#statedata{role = sg} = StateData) when Node == node() ->
-	{next_state, inactive, StateData};
 inactive({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, inactive, StateData};
 inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
@@ -211,17 +267,44 @@ active({'M-ASP_DOWN', Node, EP, Assoc},
 active({'M-ASP_DOWN', Node, _EP, _Assoc},
 		#statedata{role = sg} = StateData) when Node == node() ->
 	{next_state, active, StateData};
-active({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{role = as} = StateData) when Node == node() ->
-	case m3ua:asp_active(EP, Assoc) of
-		ok ->
+active({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = undefined, na = NA, keys = Keys,
+		mode = Mode} = StateData) when Node == node() ->
+	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			NewStateData = StateData#statedata{rc = RC},
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, active, NewStateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+active({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, active, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+active({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
 			{next_state, active, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-active({'M-ASP_UP', Node, _EP, _Assoc},
-		#statedata{role = sg} = StateData) when Node == node() ->
-	{next_state, active, StateData};
 active({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, active, StateData};
 active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
@@ -255,6 +338,44 @@ pending({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
 			end;
 		_ ->
 			{next_state, as_state(AsState), StateData}
+	end;
+pending({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = undefined, na = NA, keys = Keys,
+		mode = Mode} = StateData) when Node == node() ->
+	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			NewStateData = StateData#statedata{rc = RC},
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, NewStateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+pending({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+pending({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			{next_state, inactive, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
 	end.
 
 -spec handle_event(Event, StateName, StateData) -> Result
