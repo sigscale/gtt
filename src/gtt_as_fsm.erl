@@ -106,9 +106,16 @@ down({'M-ASP_DOWN', Node, EP, Assoc},
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-down({'M-ASP_DOWN', Node, _EP, _Assoc},
-		#statedata{role = sg} = StateData) when Node == node() ->
-	{next_state, down, StateData};
+down({'M-ASP_DOWN', Node, EP, Assoc}, #statedata{role = sg,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			NewStateData = StateData#statedata{rc = RC},
+			{next_state, down, NewStateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
 		name = Name, rc = undefined, na = NA, keys = Keys,
 		mode = Mode} = StateData) when Node == node() ->
