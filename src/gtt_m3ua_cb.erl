@@ -68,10 +68,23 @@
 		Reason :: term().
 %% @doc Initialize ASP/SGP callback handler
 %%%  Called when ASP is started.
+init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc) ->
+erlang:display({?MODULE, ?LINE, init, m3ua_sgp_fsm, Fsm, EP, EpName, Assoc}),
+	State = #state{module = m3ua_sgp_fsm, fsm = Fsm,
+			ep = EP, ep_name = EpName, assoc = Assoc},
+	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
+	init1(ASs, State, []);
 init(Module, Fsm, EP, EpName, Assoc) ->
 erlang:display({?MODULE, ?LINE, init, Module, Fsm, EP, EpName, Assoc}),
 	{ok, #state{module = Module, fsm = Fsm,
 			ep = EP, ep_name = EpName, assoc = Assoc}}.
+%% @hidden
+init1([AS | T], State, Acc) ->
+	[#gtt_as{rc = RC, na = NA, keys = Keys, name = Name,
+			mode = Mode}] = mnesia:dirty_read(gtt_as, AS),
+	init1(T, State, [{RC, {NA, Keys, Mode}, Name} | Acc]);
+init1([], State, Acc) ->
+	{ok, State, lists:reverse(Acc)}.
 
 -spec transfer(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
