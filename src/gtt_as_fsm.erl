@@ -109,7 +109,7 @@ down({'M-ASP_DOWN', Node, EP, Assoc},
 down({'M-ASP_DOWN', Node, EP, Assoc}, #statedata{role = sg,
 		name = Name, rc = RC, na = NA, keys = Keys,
 		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
-	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
 		{ok, RC} ->
 			NewStateData = StateData#statedata{rc = RC},
 			{next_state, down, NewStateData};
