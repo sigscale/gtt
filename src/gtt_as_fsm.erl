@@ -155,20 +155,9 @@ down({'M-ASP_UP', Node, _EP, _Assoc},
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-inactive({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
-		#statedata{role = as} = StateData) when Node == node() ->
-	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
-	case m3ua:asp_status(EP, Assoc) of
-		inactive ->
-			case m3ua:asp_active(EP, Assoc) of
-				ok ->
-					{next_state, as_state(AsState), StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		_ ->
-			{next_state, as_state(AsState), StateData}
-	end;
+inactive({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
+		#statedata{role = as, rc = RC} = StateData) when Node == node() ->
+	update_state(as_state(AsState), StateData);
 inactive({'M-ASP_DOWN', Node, EP, Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
 	case m3ua:asp_up(EP, Assoc) of
@@ -215,7 +204,7 @@ inactive({'M-ASP_UP', Node, _EP, _Assoc},
 inactive({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, inactive, StateData};
 inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
-	{next_state, active, StateData}.
+	update_state(active, StateData).
 
 -spec active(Event, StateData) -> Result
 	when
@@ -230,20 +219,10 @@ inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-active({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
-		#statedata{role = as} = StateData) when Node == node() ->
+active({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
+		#statedata{role = as, rc = RC} = StateData) when Node == node() ->
 	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
-	case m3ua:asp_status(EP, Assoc) of
-		inactive ->
-			case m3ua:asp_active(EP, Assoc) of
-				ok ->
-					{next_state, as_state(AsState), StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		_ ->
-			{next_state, as_state(AsState), StateData}
-	end;
+	update_state(as_state(AsState), StateData);
 active({'M-ASP_DOWN', Node, EP, Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
 	case m3ua:asp_up(EP, Assoc) of
@@ -290,7 +269,7 @@ active({'M-ASP_UP', Node, _EP, _Assoc},
 active({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, active, StateData};
 active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
-	{next_state, active, StateData}.
+	update_state(active, StateData).
 
 -spec pending(Event, StateData) -> Result
 	when
@@ -307,20 +286,9 @@ active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 %% @private
 pending(timeout, #statedata{} = StateData) ->
 	{next_state, down, StateData};
-pending({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
-		StateData) when Node == node() ->
-	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
-	case m3ua:asp_status(EP, Assoc) of
-		inactive ->
-			case m3ua:asp_active(EP, Assoc) of
-				ok ->
-					{next_state, as_state(AsState), StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		_ ->
-			{next_state, as_state(AsState), StateData}
-	end;
+pending({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
+		#statedata{role = as, rc = RC} = StateData) when Node == node() ->
+	update_state(as_state(AsState), StateData);
 pending({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
 		name = Name, rc = undefined, na = NA, keys = Keys,
 		mode = Mode} = StateData) when Node == node() ->
@@ -452,4 +420,17 @@ as_state(as_inactive) ->
 	inactive;
 as_state(as_pending) ->
 	pending.
+
+%% @hidden
+update_state(StateName, #statedata{rc = RC} = StateData) ->
+	F = fun() ->
+			[#m3ua_as{} = AS] = mnesia:read(m3ua_as, RC, write),
+			mnesia:write(AS#m3ua_as{state = StateName})
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			{next_state, StateName, StateData};
+		{aborted, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
