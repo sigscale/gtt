@@ -44,6 +44,9 @@
 				Weight :: non_neg_integer(),
 				Timestamp :: pos_integer()}]}).
 
+%% support deprecated_time_unit()
+-define(MICROSECONDS, micro_seconds).
+%-define(MICROSECONDS, microsecond).
 -define(TRANSFERWAIT, 1000).
 -define(RECOVERYWAIT, 60000).
 
@@ -132,23 +135,23 @@ erlang:display({?MODULE, ?LINE, OPC, NI, SI, SLS, UnitData}),
 			{ok, State#state{weights = []}};
 		ActiveAsps ->
 			{DPC, Fsm, ActiveWeights} = ?MODULE:select_asp(ActiveAsps, Weights),
-			Tstart = erlang:monotonic_time(),
+			Tstart = erlang:monotonic_time(?MICROSECONDS),
 			Delay = case catch m3ua:transfer(Fsm, 1, OPC, DPC,
 					NI, SI, SLS, UnitData, ?TRANSFERWAIT) of
 				{error, timeout} ->
-					Tend = erlang:monotonic_time() - Tstart,
+					Tend = erlang:monotonic_time(?MICROSECONDS) - Tstart,
 					error_logger:warning_report(["MTP-TRANSFER timeout",
 							{error, timeout}, {fsm, Fsm}, {dpc, DPC},
 							{weights, ActiveWeights}]),
 					Tend;
 				{Error, Reason} when Error == error; Error == 'EXIT' ->
-					Tend = erlang:monotonic_time() - Tstart,
+					Tend = erlang:monotonic_time(?MICROSECONDS) - Tstart,
 					error_logger:error_report(["MTP-TRANSFER error",
 							{error, Reason}, {fsm, Fsm}, {dpc, DPC},
 							{weights, ActiveWeights}]),
 					Tend;
 				ok ->
-					erlang:monotonic_time() - Tstart
+					erlang:monotonic_time(?MICROSECONDS) - Tstart
 			end,
 			Weight = {Fsm, Delay, Tstart},
 			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, Weight),
@@ -370,7 +373,7 @@ erlang:display({?MODULE, ?LINE, terminate, _Reason, State}),
 		Result :: {DPC, Fsm, ActiveWeights}.
 %% @doc Select destination ASP with lowest weight.
 select_asp(ActiveAsps, Weights) ->
-	Now = erlang:monotonic_time(),
+	Now = erlang:monotonic_time(?MICROSECONDS),
 	ActiveWeights = select_asp1(Weights, ActiveAsps, Now, []),
 	Fsm = case hd(ActiveWeights) of
 		{_, 0, _} ->
