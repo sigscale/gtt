@@ -37,18 +37,20 @@
 -record(gtt_as,
 		{name :: as_ref(),
 		role :: as | sg,
-		na :: pos_integer(),
-		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
+		rc :: undefined | 0..4294967295,
+		na :: undefined | 0..4294967295,
+		keys :: [{DPC :: 0..16777215,
+				[SI :: byte()], [OPC :: 0..16777215]}],
 		mode :: override | loadshare | broadcast,
 		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
 		fsm = [] :: [{EP :: pid(), Assoc :: pos_integer()}]}). % to be removed 
 
 -record(gtt_pc,
-		{dpc :: pos_integer() | undefined,
+		{dpc :: 0..16777215 | undefined,
 		mask = 0 :: non_neg_integer() | '_',
-		na :: pos_integer() | '_' | undefined,
+		na :: 0..4294967295 | '_' | undefined,
 		si = [] :: [byte()] | '_',
-		opc = [] :: [pos_integer()] | '_',
+		opc = [] :: [0..16777215] | '_',
 		as :: routing_key() | '$1' | undefined}).
 

@@ -23,7 +23,7 @@
 %% export the public API
 -export([add_ep/7, add_ep/8, delete_ep/1, get_ep/0, find_ep/1,
 		stat_ep/1, stat_ep/2]).
--export([add_as/7, delete_as/1, get_as/0, find_as/1]).
+-export([add_as/8, delete_as/1, get_as/0, find_as/1]).
 -export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
 		find_pc/3, find_pc/4]).
 
@@ -148,37 +148,46 @@ find_ep(Name) ->
 			{error, Reason}
 	end.
 
--spec add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp) -> Result
+-spec add_as(Name, Role, RC, NA, Keys, Mode, MinAsp, MaxAsp) -> Result
 	when
 		Name :: as_ref(),
 		Role :: as | sg,
-		NA :: pos_integer(),
+		RC :: undefined | 0..4294967295,
+		NA :: undefined | 0..4294967295,
 		Keys :: [Key],
+		Result :: {ok, AS} | {error, Reason},
+		Key :: {DPC, SIs, OPCs},
+		DPC :: 0..16777215,
+		SIs :: [SI],
+		SI :: byte(),
+		OPCs :: [OPC],
+		OPC :: 0..16777215,
 		Mode :: override | loadshare | broadcast,
 		MinAsp :: pos_integer(),
 		MaxAsp :: pos_integer(),
-		Result :: {ok, AS} | {error, Reason},
-		Key :: {DPC, SIs, OPCs},
-		DPC :: pos_integer(),
-		SIs :: [SI],
-		OPCs :: [OPC],
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
 		AS :: #gtt_as{},
 		Reason :: term().
 %% @doc Create new Application Server specification.
-add_as(Name, Role, NA, Keys, Mode, MinAsp, MaxAsp)
+add_as(Name, Role, RC, NA, Keys, Mode, MinAsp, MaxAsp)
 		when is_integer(NA), is_list(Keys), is_integer(MinAsp),
 		is_integer(MaxAsp), ((Mode == override) orelse (Mode == loadshare)
-		orelse (Mode == broadcast)), ((Role == as) orelse (Role == sg)) ->
-	F = fun() ->
-			GttAs = #gtt_as{name = Name, role = Role,
+		orelse (Mode == broadcast)), ((Role == as) orelse (Role == sg)),
+		(((Role == sg) and is_integer(RC)) or ((Role == as)
+		and ((RC == undefined) or is_integer(RC)))) ->
+	Fas = fun() ->
+			GttAs = #gtt_as{name = Name, role = Role, rc = RC,
 					na = NA, keys = Keys, mode = Mode,
 					min_asp = MinAsp, max_asp = MaxAsp},
 			mnesia:write(gtt_as, GttAs, write),
+			RK = {NA, Keys, Mode},
+			Fpc =fun({DPC, SIs, OPCs}) ->
+				PC = #gtt_pc{dpc = DPC, na = NA, si = SIs, opc = OPCs, as = RK},
+				mnesia:write(PC)
+			end,
+			lists:foreach(Fpc, Keys),
 			GttAs
 	end,
-	case mnesia:transaction(F) of
+	case mnesia:transaction(Fas) of
 		{atomic, AS} ->
 			{ok, AS};
 		{aborted, Reason} ->
@@ -282,7 +291,7 @@ delete_key({NA, Keys, _} = Key) when is_list(Keys),
 
 -spec find_pc(DPC) -> Result
 	when
-		DPC :: pos_integer(),
+		DPC :: 0..16777215,
 		Result :: [as_ref()].
 %% @equiv find_pc(undefined, DPC, undefined, undefined)
 find_pc(DPC) ->
@@ -290,8 +299,8 @@ find_pc(DPC) ->
 
 -spec find_pc(DPC, SI) -> Result
 	when
-		DPC :: pos_integer(),
-		SI :: pos_integer() | undefined,
+		DPC :: 0..16777215,
+		SI :: byte() | undefined,
 		Result :: [m3ua:routing_key()].
 %% @equiv find_pc(undefined, DPC, SI, undefined)
 find_pc(DPC, SI) ->
@@ -299,9 +308,9 @@ find_pc(DPC, SI) ->
 
 -spec find_pc(DPC, SI, OPC) -> Result
 	when
-		DPC :: pos_integer(),
-		SI :: pos_integer() | undefined,
-		OPC :: pos_integer() | undefined,
+		DPC :: 0..16777215,
+		SI :: byte() | undefined,
+		OPC :: 0..16777215 | undefined,
 		Result :: [m3ua:routing_key()].
 %% @equiv find_pc(undefined, DPC, SI, OPC)
 find_pc(DPC, SI, OPC) ->
@@ -310,9 +319,9 @@ find_pc(DPC, SI, OPC) ->
 -spec find_pc(NA, DPC, SI, OPC) -> Result
 	when
 		NA :: pos_integer() | undefined,
-		DPC :: pos_integer(),
-		SI :: pos_integer() | undefined,
-		OPC :: pos_integer() | undefined,
+		DPC :: 0..16777215,
+		SI :: byte() | undefined,
+		OPC :: 0..16777215 | undefined,
 		Result :: [m3ua:routing_key()].
 %% @doc Find Application Servers matching destination.
 find_pc(NA, DPC, SI, OPC)

@@ -37,8 +37,10 @@
 -record(statedata,
 		{name :: as_ref(),
 		role :: as | sg,
-		na :: pos_integer(),
-		keys :: [{DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}],
+		rc :: undefined | 0..4294967295,
+		na :: undefined | 0..4294967295,
+		keys :: [{DPC :: 0..16777215,
+				[SI :: byte()], [OPC :: 0..16777215]}],
 		mode :: override | loadshare | broadcast,
 		min :: pos_integer(),
 		max :: pos_integer()}).
@@ -72,12 +74,12 @@
 init([Name] = _Args) ->
 	F = fun() -> mnesia:read(gtt_as, Name, read) end,
 	case mnesia:transaction(F) of
-		{atomic, [#gtt_as{name = Name,
-				role = Role, na = NA, keys = Keys,
+		{atomic, [#gtt_as{name = Name, role = Role,
+				rc = RC, na = NA, keys = Keys,
 				mode = Mode, min_asp = Min, max_asp = Max}]} ->
-			StateData = #statedata{name = Name,
-					role = Role, na = NA, keys = Keys,
-					mode = Mode, min = Min, max = Max},
+			StateData = #statedata{name = Name, role = Role,
+					rc = RC, na = NA, keys = Keys, mode = Mode,
+					min = Min, max = Max},
 			{ok, down, StateData};
 		{aborted, Reason} ->
 			{stop, Reason}
@@ -107,11 +109,32 @@ down({'M-ASP_DOWN', Node, EP, Assoc},
 down({'M-ASP_DOWN', Node, _EP, _Assoc},
 		#statedata{role = sg} = StateData) when Node == node() ->
 	{next_state, down, StateData};
-down({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{role = as} = StateData) when Node == node() ->
-	case m3ua:asp_active(EP, Assoc) of
-		ok ->
-			{next_state, inactive, StateData};
+down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = undefined, na = NA, keys = Keys,
+		mode = Mode} = StateData) when Node == node() ->
+	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			NewStateData = StateData#statedata{rc = RC},
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, NewStateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+down({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -132,20 +155,9 @@ down({'M-ASP_UP', Node, _EP, _Assoc},
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-inactive({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
-		#statedata{role = as} = StateData) when Node == node() ->
-	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
-	case m3ua:asp_status(EP, Assoc) of
-		inactive ->
-			case m3ua:asp_active(EP, Assoc) of
-				ok ->
-					{next_state, as_state(AsState), StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		_ ->
-			{next_state, as_state(AsState), StateData}
-	end;
+inactive({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
+		#statedata{role = as, rc = RC} = StateData) when Node == node() ->
+	update_state(as_state(AsState), StateData);
 inactive({'M-ASP_DOWN', Node, EP, Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
 	case m3ua:asp_up(EP, Assoc) of
@@ -157,11 +169,32 @@ inactive({'M-ASP_DOWN', Node, EP, Assoc},
 inactive({'M-ASP_DOWN', Node, _EP, _Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
 	{next_state, inactive, StateData};
-inactive({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{role = as} = StateData) when Node == node() ->
-	case m3ua:asp_active(EP, Assoc) of
-		ok ->
-			{next_state, inactive, StateData};
+inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = undefined, na = NA, keys = Keys,
+		mode = Mode} = StateData) when Node == node() ->
+	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			NewStateData = StateData#statedata{rc = RC},
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, NewStateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+inactive({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -171,7 +204,7 @@ inactive({'M-ASP_UP', Node, _EP, _Assoc},
 inactive({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, inactive, StateData};
 inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
-	{next_state, active, StateData}.
+	update_state(active, StateData).
 
 -spec active(Event, StateData) -> Result
 	when
@@ -186,20 +219,10 @@ inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 %%		gen_fsm:send_event/2} in the <b>request</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
-active({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
-		#statedata{role = as} = StateData) when Node == node() ->
+active({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
+		#statedata{role = as, rc = RC} = StateData) when Node == node() ->
 	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
-	case m3ua:asp_status(EP, Assoc) of
-		inactive ->
-			case m3ua:asp_active(EP, Assoc) of
-				ok ->
-					{next_state, as_state(AsState), StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		_ ->
-			{next_state, as_state(AsState), StateData}
-	end;
+	update_state(as_state(AsState), StateData);
 active({'M-ASP_DOWN', Node, EP, Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
 	case m3ua:asp_up(EP, Assoc) of
@@ -211,11 +234,32 @@ active({'M-ASP_DOWN', Node, EP, Assoc},
 active({'M-ASP_DOWN', Node, _EP, _Assoc},
 		#statedata{role = sg} = StateData) when Node == node() ->
 	{next_state, active, StateData};
-active({'M-ASP_UP', Node, EP, Assoc},
-		#statedata{role = as} = StateData) when Node == node() ->
-	case m3ua:asp_active(EP, Assoc) of
-		ok ->
-			{next_state, active, StateData};
+active({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = undefined, na = NA, keys = Keys,
+		mode = Mode} = StateData) when Node == node() ->
+	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			NewStateData = StateData#statedata{rc = RC},
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, active, NewStateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+active({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, active, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -225,7 +269,7 @@ active({'M-ASP_UP', Node, _EP, _Assoc},
 active({'M-ASP_INACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 	{next_state, active, StateData};
 active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
-	{next_state, active, StateData}.
+	update_state(active, StateData).
 
 -spec pending(Event, StateData) -> Result
 	when
@@ -242,20 +286,41 @@ active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 %% @private
 pending(timeout, #statedata{} = StateData) ->
 	{next_state, down, StateData};
-pending({'M-NOTIFY', Node, EP, Assoc, _RC, AsState, _AspID},
-		StateData) when Node == node() ->
-	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
-	case m3ua:asp_status(EP, Assoc) of
-		inactive ->
+pending({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
+		#statedata{role = as, rc = RC} = StateData) when Node == node() ->
+	update_state(as_state(AsState), StateData);
+pending({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = undefined, na = NA, keys = Keys,
+		mode = Mode} = StateData) when Node == node() ->
+	case m3ua:register(EP, Assoc, undefined, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			NewStateData = StateData#statedata{rc = RC},
 			case m3ua:asp_active(EP, Assoc) of
 				ok ->
-					{next_state, as_state(AsState), StateData};
+					{next_state, inactive, NewStateData};
 				{error, Reason} ->
 					{stop, Reason, StateData}
 			end;
-		_ ->
-			{next_state, as_state(AsState), StateData}
-	end.
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+pending({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
+		name = Name, rc = RC, na = NA, keys = Keys,
+		mode = Mode} = StateData) when is_integer(RC), Node == node() ->
+	case m3ua:register(EP, Assoc, RC, NA, Keys, Mode, Name) of
+		{ok, RC} ->
+			case m3ua:asp_active(EP, Assoc) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+pending({'M-ASP_UP', Node, _EP, _Assoc},
+		#statedata{role = sg} = StateData) when Node == node() ->
+	{next_state, inactive, StateData}.
 
 -spec handle_event(Event, StateName, StateData) -> Result
 	when
@@ -355,4 +420,17 @@ as_state(as_inactive) ->
 	inactive;
 as_state(as_pending) ->
 	pending.
+
+%% @hidden
+update_state(StateName, #statedata{rc = RC} = StateData) ->
+	F = fun() ->
+			[#m3ua_as{} = AS] = mnesia:read(m3ua_as, RC, write),
+			mnesia:write(AS#m3ua_as{state = StateName})
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			{next_state, StateName, StateData};
+		{aborted, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
