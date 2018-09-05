@@ -1,3 +1,16 @@
+2018-09-05  Vance Shipley <vances@sigscale.org>
+
+	* update for blocking api change
+	* handle notify on as to update state
+	* handle sgp static registration in init callback
+	* register sgp on down
+	* send asp active event to as fsm
+	* add point codes to gtt_pc table on adding to as table
+	* treat all weights less than blocktime equally
+	* force load tables after waiting to load on startup
+	* update for new m3ua api
+	* add routing context to as table
+
 2018-08-04  Vance Shipley <vances@sigscale.org>
 
 	* timestamp and age weights
