@@ -63,7 +63,8 @@
 		EP :: pid(),
 		EpName :: term(),
 		Assoc :: pos_integer(),
-		Result :: {ok, State} | {error, Reason},
+		Result :: {ok, Active, State} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
 		State :: term(),
 		Reason :: term().
 %% @doc Initialize ASP/SGP callback handler
@@ -76,7 +77,7 @@ erlang:display({?MODULE, ?LINE, init, m3ua_sgp_fsm, Fsm, EP, EpName, Assoc}),
 	init1(ASs, State, []);
 init(Module, Fsm, EP, EpName, Assoc) ->
 erlang:display({?MODULE, ?LINE, init, Module, Fsm, EP, EpName, Assoc}),
-	{ok, #state{module = Module, fsm = Fsm,
+	{ok, once, #state{module = Module, fsm = Fsm,
 			ep = EP, ep_name = EpName, assoc = Assoc}}.
 %% @hidden
 init1([AS | T], State, Acc) ->
@@ -97,7 +98,8 @@ init1([], State, Acc) ->
 		SLS :: byte(),
 		Data :: binary(),
 		State :: term(),
-		Result :: {ok, NewState} | {error, Reason},
+		Result :: {ok, Active, NewState} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
 		NewState :: term(),
 		Reason :: term().
 %% @doc MTP-TRANSFER indication
@@ -123,7 +125,7 @@ transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 	transfer1(RC, 2081, 0, SI, SLS, UnitData, State, ASs).
 %% @hidden
 transfer1(_RC, _OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
-	{ok, State};
+	{ok, once, State};
 transfer1(RC, OPC, NI, SI, SLS, UnitData, #state{weights = Weights} = State, ASs) ->
 erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 	MatchHead = match_head(),
@@ -143,7 +145,7 @@ erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 	end,
 	case F2(ASPs, []) of
 		[] ->
-			{ok, State#state{weights = []}};
+			{ok, once, State#state{weights = []}};
 		ActiveAsps ->
 			{DPC, Fsm, ActiveWeights} = ?MODULE:select_asp(ActiveAsps, Weights),
 			Tstart = erlang:monotonic_time(),
@@ -166,7 +168,7 @@ erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 			end,
 			Weight = {Fsm, Delay, Tstart},
 			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, Weight),
-			{ok, State#state{weights = NewWeights}}
+			{ok, once, State#state{weights = NewWeights}}
 	end.
 
 %% @hidden
