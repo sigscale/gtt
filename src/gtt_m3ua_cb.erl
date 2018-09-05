@@ -23,9 +23,9 @@
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
 %% m3ua_asp_fsm callbacks
--export([init/5, transfer/9, pause/4, resume/4, status/4,
+-export([init/5, recv/9, send/9, pause/4, resume/4, status/4,
 		register/5, asp_up/1, asp_down/1, asp_active/1,
-		asp_inactive/1, notify/4, terminate/2]).
+		asp_inactive/1, notify/4, info/2, terminate/2]).
 
 %% gtt_m3ua_cb private API
 -export([select_asp/2]).
@@ -87,7 +87,7 @@ init1([AS | T], State, Acc) ->
 init1([], State, Acc) ->
 	{ok, State, lists:reverse(Acc)}.
 
--spec transfer(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
+-spec recv(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
 		Stream :: pos_integer(),
 		RC :: 0..4294967295 | undefined,
@@ -104,29 +104,29 @@ init1([], State, Acc) ->
 		Reason :: term().
 %% @doc MTP-TRANSFER indication
 %%%  Called when data has arrived for the MTP user.
-transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
+recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 		#state{fsm = Fsm, ep = EP, ep_name = EpName, assoc = Assoc} = State)
 %		when DPC =:= 2057; DPC =:= 2065 ->
 		when DPC =:= 2073; DPC =:= 2081 ->
 	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
 %	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 2089, 6210, 2306]]),
-%	transfer1(RC, 6209, 2, SI, SLS, UnitData, State, ASs);
+%	recv1(RC, 6209, 2, SI, SLS, UnitData, State, ASs);
 	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2305]]),
-	transfer1(RC, 2058, 2, SI, SLS, UnitData, State, ASs);
-transfer(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
+	recv1(RC, 2058, 2, SI, SLS, UnitData, State, ASs);
+recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 		#state{fsm = Fsm, ep = EP, ep_name = EpName, assoc = Assoc} = State)
 %		when DPC == 6209 ->
 		when DPC == 2058 ->
 	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2097, 2098]]),
 	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
-%	transfer1(RC, 2057, 0, SI, SLS, UnitData, State, ASs).
-%	transfer1(RC, 2065, 0, SI, SLS, UnitData, State, ASs).
-%	transfer1(RC, 2073, 0, SI, SLS, UnitData, State, ASs).
-	transfer1(RC, 2081, 0, SI, SLS, UnitData, State, ASs).
+%	recv1(RC, 2057, 0, SI, SLS, UnitData, State, ASs).
+%	recv1(RC, 2065, 0, SI, SLS, UnitData, State, ASs).
+%	recv1(RC, 2073, 0, SI, SLS, UnitData, State, ASs).
+	recv1(RC, 2081, 0, SI, SLS, UnitData, State, ASs).
 %% @hidden
-transfer1(_RC, _OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
+recv1(_RC, _OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
 	{ok, once, State};
-transfer1(RC, OPC, NI, SI, SLS, UnitData, #state{weights = Weights} = State, ASs) ->
+recv1(RC, OPC, NI, SI, SLS, UnitData, #state{weights = Weights} = State, ASs) ->
 erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 	MatchHead = match_head(),
 	F1 = fun({NA, Keys, Mode}) ->
@@ -149,7 +149,8 @@ erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 		ActiveAsps ->
 			{DPC, Fsm, ActiveWeights} = ?MODULE:select_asp(ActiveAsps, Weights),
 			Tstart = erlang:monotonic_time(),
-			Delay = case catch m3ua:transfer(Fsm, 1, undefined, OPC, DPC,
+%			Delay = case catch m3ua:transfer(Fsm, 1, undefined, OPC, DPC,
+			Delay = case catch m3ua:cast(Fsm, 1, undefined, OPC, DPC,
 					NI, SI, SLS, UnitData, ?TRANSFERWAIT) of
 				{error, timeout} ->
 					Tend = erlang:monotonic_time() - Tstart,
@@ -170,6 +171,27 @@ erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, Weight),
 			{ok, once, State#state{weights = NewWeights}}
 	end.
+
+-spec send(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
+	when
+		Stream :: pos_integer(),
+		RC :: 0..4294967295 | undefined,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
+		NI :: byte(),
+		SI :: byte(),
+		SLS :: byte(),
+		Data :: binary(),
+		State :: term(),
+		Result :: {ok, Active, NewState} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
+		NewState :: term(),
+		Reason :: term().
+%% @doc MTP-TRANSFER request
+%%%  Called when data has been sent for the MTP user.
+send(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _UnitData, State) ->
+erlang:display({?MODULE, ?LINE, _Stream, _RC, _OPC, _NI, _SI, _SLS, _UnitData}),
+	{ok, once, State}.
 
 %% @hidden
 log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData) ->
@@ -365,6 +387,19 @@ erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
+
+-spec info(Info, State) -> Result
+	when
+		Info :: term(),
+		State :: term(),
+		Result :: {ok, Active, NewState} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
+		NewState :: term(),
+		Reason :: term().
+%% @doc Called when ASP/SGP receives other `Info' messages.
+info(_Info, State) ->
+erlang:display({?MODULE, ?LINE, info, _Info, State}),
+	{ok, once, State}.
 
 -spec terminate(Reason, State) -> Result
 	when
