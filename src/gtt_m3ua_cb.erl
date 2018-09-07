@@ -23,7 +23,7 @@
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
 %% m3ua_asp_fsm callbacks
--export([init/5, recv/9, send/9, pause/4, resume/4, status/4,
+-export([init/5, recv/9, send/11, pause/4, resume/4, status/4,
 		register/5, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, info/2, terminate/2]).
 
@@ -42,7 +42,7 @@
 		rk = [] :: [routing_key()],
 		weights = [] :: [{Fsm :: pid(),
 				Weight :: non_neg_integer(),
-				Timestamp :: pos_integer()}]}).
+				Timestamp :: integer()}]}).
 
 -define(TRANSFERWAIT, 1000).
 -define(BLOCKTIME, 100).
@@ -147,33 +147,19 @@ erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 		[] ->
 			{ok, once, State#state{weights = []}};
 		ActiveAsps ->
-			{DPC, Fsm, ActiveWeights} = ?MODULE:select_asp(ActiveAsps, Weights),
+			{DPC, Fsm, Delay, ActiveWeights} = ?MODULE:select_asp(ActiveAsps, Weights),
 			Tstart = erlang:monotonic_time(),
-%			Delay = case catch m3ua:transfer(Fsm, 1, undefined, OPC, DPC,
-			Delay = case catch m3ua:cast(Fsm, 1, undefined, OPC, DPC,
-					NI, SI, SLS, UnitData, ?TRANSFERWAIT) of
-				{error, timeout} ->
-					Tend = erlang:monotonic_time() - Tstart,
-					error_logger:warning_report(["MTP-TRANSFER timeout",
-							{error, timeout}, {fsm, Fsm}, {dpc, DPC},
-							{weights, ActiveWeights}]),
-					Tend;
-				{Error, Reason} when Error == error; Error == 'EXIT' ->
-					Tend = erlang:monotonic_time() - Tstart,
-					error_logger:error_report(["MTP-TRANSFER error",
-							{error, Reason}, {fsm, Fsm}, {dpc, DPC},
-							{weights, ActiveWeights}]),
-					Tend;
-				ok ->
-					erlang:monotonic_time() - Tstart
-			end,
-			Weight = {Fsm, Delay, Tstart},
+			Ref = m3ua:cast(Fsm, 1, undefined,
+					OPC, DPC, NI, SI, SLS, UnitData, ?TRANSFERWAIT),
+			Weight = {Fsm, Ref, Delay, Tstart},
 			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, Weight),
-			{ok, once, State#state{weights = NewWeights}}
+			{ok, false, State#state{weights = NewWeights}}
 	end.
 
--spec send(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
+-spec send(From, Ref, Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
+		From :: pid(),
+		Ref :: reference(),
 		Stream :: pos_integer(),
 		RC :: 0..4294967295 | undefined,
 		OPC :: 0..16777215,
@@ -189,8 +175,9 @@ erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 		Reason :: term().
 %% @doc MTP-TRANSFER request
 %%%  Called when data has been sent for the MTP user.
-send(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _UnitData, State) ->
-erlang:display({?MODULE, ?LINE, _Stream, _RC, _OPC, _NI, _SI, _SLS, _UnitData}),
+send(From, Ref, _Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _UnitData, State) ->
+erlang:display({?MODULE, ?LINE, From, Ref, _Stream, _RC, _OPC, _NI, _SI, _SLS, _UnitData}),
+	From ! {'MTP-TRANSFER', confirm, Ref},
 	{ok, once, State}.
 
 %% @hidden
@@ -397,9 +384,17 @@ erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
 		NewState :: term(),
 		Reason :: term().
 %% @doc Called when ASP/SGP receives other `Info' messages.
-info(_Info, State) ->
+info({'MTP-TRANSFER', confirm, Ref} = _Info, #state{weights = Weights} = State) ->
 erlang:display({?MODULE, ?LINE, info, _Info, State}),
-	{ok, once, State}.
+	case lists:keytake(Ref, 2, Weights) of
+		{value, {Fsm, Ref, _Delay, StartTime}, Weights1} ->
+			Now = erlang:monotonic_time(),
+			NewDelay = Now - StartTime,
+			Weights2 = [{Fsm, undefined, NewDelay, Now} | Weights1],
+			{ok, once, State#state{weights = Weights2}};
+		false ->
+			{ok, once, State}
+	end.
 
 -spec terminate(Reason, State) -> Result
 	when
@@ -422,48 +417,50 @@ erlang:display({?MODULE, ?LINE, terminate, _Reason, State}),
 		Fsm :: pid(),
 		Weights :: [{Fsm, Weight, Timestamp}],
 		Weight :: non_neg_integer(),
-		Timestamp :: pos_integer(),
+		Timestamp :: integer(),
 		ActiveWeights :: [{Fsm, Weight, Timestamp}],
-		Result :: {DPC, Fsm, ActiveWeights}.
+		Result :: {DPC, Fsm, Delay, ActiveWeights},
+		Delay :: pos_integer().
 %% @doc Select destination ASP with lowest weight.
 select_asp(ActiveAsps, Weights) ->
 	Now = erlang:monotonic_time(),
 	ActiveWeights = select_asp1(Weights, ActiveAsps, Now, []),
-	Fblock = fun({_, N, _}) when N < ?BLOCKTIME ->
+	Fblock = fun({_, _, N, _}) when N < ?BLOCKTIME ->
 				true;
 			(_) ->
 				false
 	end,
-	Fsm = case lists:takewhile(Fblock, ActiveWeights) of
-		[{Pid, _, _}] ->
-			Pid;
+	{Fsm, Delay} = case lists:takewhile(Fblock, ActiveWeights) of
+		[{Pid, _, Delay1, _}] ->
+			{Pid, Delay1};
 		[] ->
-			Ftimeout = fun({_, N, _}) when N < ?TRANSFERWAIT->
+			Ftimeout = fun({_, _, N, _}) when N < ?TRANSFERWAIT->
 						true;
 					(_) ->
 						false
 			end,
 			case lists:takewhile(Ftimeout, ActiveWeights) of
 				[] ->
-					{Pid, _, _} = hd(ActiveWeights),
-					Pid;
+					Len = length(ActiveWeights),
+					{Pid, _, Delay1, _} = lists:nth(rand:uniform(Len), ActiveWeights),
+					{Pid, Delay1};
 				Responding ->
 					Len = length(Responding),
-					{Pid, _, _} = lists:nth(rand:uniform(Len), Responding),
-					Pid
+					{Pid, _, Delay1, _} = lists:nth(rand:uniform(Len), Responding),
+					{Pid, Delay1}
 			end;
 		NonBlocking ->
 			Len = length(NonBlocking),
-			{Pid, _, _} = lists:nth(rand:uniform(Len), NonBlocking),
-			Pid
+			{Pid, _, Delay1, _} = lists:nth(rand:uniform(Len), NonBlocking),
+			{Pid, Delay1}
 	end,
 	{DPC, Fsm} = lists:keyfind(Fsm, 2, ActiveAsps),
-	{DPC, Fsm, ActiveWeights}.
+	{DPC, Fsm, Delay, ActiveWeights}.
 %% @hidden
-select_asp1([{Fsm, _, Timestamp} = H | T] = _Weights, ActiveAsps, Now, Acc) ->
+select_asp1([{Fsm, _, _, Timestamp} = H | T] = _Weights, ActiveAsps, Now, Acc) ->
 	case lists:keymember(Fsm, 2, ActiveAsps) of
 		true when (Now - Timestamp) > ?RECOVERYWAIT ->
-			select_asp1(T, ActiveAsps, Now, [{Fsm, 1, Now} | Acc]);
+			select_asp1(T, ActiveAsps, Now, [{Fsm, undefined, 1, Now} | Acc]);
 		true ->
 			select_asp1(T, ActiveAsps, Now, [H | Acc]);
 		false ->
@@ -477,7 +474,7 @@ select_asp2([{_, Fsm} | T] = _ActiveAsps, Now, Weights) ->
 		true ->
 			select_asp2(T, Now, Weights);
 		false ->
-			select_asp2(T, Now, [{Fsm, 0, Now} | Weights])
+			select_asp2(T, Now, [{Fsm, undefined, 0, Now} | Weights])
 	end;
 select_asp2([] = _ActiveAsps, _Now, Weights) ->
 	lists:keysort(2, Weights).
