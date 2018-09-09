@@ -63,9 +63,18 @@
 		EP :: pid(),
 		EpName :: term(),
 		Assoc :: pos_integer(),
-		Result :: {ok, Active, State} | {error, Reason},
+		Result :: {ok, Active, State} | {ok, Active, State, ASs} | {error, Reason},
 		Active :: true | false | once | pos_integer(),
 		State :: term(),
+		Active :: true | false | once | pos_integer(),
+		State :: term(),
+		ASs :: [{RC, RK, AsName}],
+		RC :: 0..4294967295,
+		RK :: {NA, Keys, TMT},
+		NA :: 0..4294967295 | undefined,
+		Keys :: [key()],
+		TMT :: tmt(),
+		AsName :: term(),
 		Reason :: term().
 %% @doc Initialize ASP/SGP callback handler
 %%%  Called when ASP is started.
@@ -85,7 +94,7 @@ init1([AS | T], State, Acc) ->
 			mode = Mode}] = mnesia:dirty_read(gtt_as, AS),
 	init1(T, State, [{RC, {NA, Keys, Mode}, Name} | Acc]);
 init1([], State, Acc) ->
-	{ok, State, lists:reverse(Acc)}.
+	{ok, once, State, lists:reverse(Acc)}.
 
 -spec recv(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
