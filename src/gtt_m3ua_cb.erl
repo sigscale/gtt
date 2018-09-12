@@ -130,8 +130,8 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
 %	recv1(RC, 2057, 0, SI, SLS, UnitData, State, ASs).
 %	recv1(RC, 2065, 0, SI, SLS, UnitData, State, ASs).
-%	recv1(RC, 2073, 0, SI, SLS, UnitData, State, ASs).
-	recv1(RC, 2081, 0, SI, SLS, UnitData, State, ASs).
+	recv1(RC, 2073, 0, SI, SLS, UnitData, State, ASs).
+%	recv1(RC, 2081, 0, SI, SLS, UnitData, State, ASs).
 %% @hidden
 recv1(_RC, _OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
 	{ok, once, State};
@@ -158,8 +158,7 @@ erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 		ActiveAsps ->
 			{DPC, Fsm, Delay, ActiveWeights} = ?MODULE:select_asp(ActiveAsps, Weights),
 			Tstart = erlang:monotonic_time(),
-			Ref = m3ua:cast(Fsm, 1, undefined,
-					OPC, DPC, NI, SI, SLS, UnitData, ?TRANSFERWAIT),
+			Ref = m3ua:cast(Fsm, 1, undefined, OPC, DPC, NI, SI, SLS, UnitData),
 			Weight = {Fsm, Ref, Delay, Tstart},
 			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, Weight),
 			{ok, false, State#state{weights = NewWeights}}
