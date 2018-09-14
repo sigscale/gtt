@@ -79,13 +79,13 @@
 %% @doc Initialize ASP/SGP callback handler
 %%%  Called when ASP is started.
 init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc) ->
-erlang:display({?MODULE, ?LINE, init, m3ua_sgp_fsm, Fsm, EP, EpName, Assoc}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), init, m3ua_sgp_fsm, Fsm, EP, EpName, Assoc}),
 	State = #state{module = m3ua_sgp_fsm, fsm = Fsm,
 			ep = EP, ep_name = EpName, assoc = Assoc},
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	init1(ASs, State, []);
 init(Module, Fsm, EP, EpName, Assoc) ->
-erlang:display({?MODULE, ?LINE, init, Module, Fsm, EP, EpName, Assoc}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), init, Module, Fsm, EP, EpName, Assoc}),
 	{ok, once, #state{module = Module, fsm = Fsm,
 			ep = EP, ep_name = EpName, assoc = Assoc}}.
 %% @hidden
@@ -136,7 +136,7 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
 recv1(_RC, _OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
 	{ok, once, State};
 recv1(RC, OPC, NI, SI, SLS, UnitData, #state{weights = Weights} = State, ASs) ->
-erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), RC, OPC, NI, SI, SLS, UnitData}),
 	MatchHead = match_head(),
 	F1 = fun({NA, Keys, Mode}) ->
 				{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
@@ -161,6 +161,7 @@ erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 			Ref = m3ua:cast(Fsm, 1, undefined, OPC, DPC, NI, SI, SLS, UnitData),
 			Weight = {Fsm, Ref, Delay, Tstart},
 			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, Weight),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), NewWeights}),
 			{ok, false, State#state{weights = NewWeights}}
 	end.
 
@@ -184,7 +185,7 @@ erlang:display({?MODULE, ?LINE, RC, OPC, NI, SI, SLS, UnitData}),
 %% @doc MTP-TRANSFER request
 %%%  Called when data has been sent for the MTP user.
 send(From, Ref, _Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _UnitData, State) ->
-erlang:display({?MODULE, ?LINE, From, Ref, _Stream, _RC, _OPC, _NI, _SI, _SLS, _UnitData}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), From, Ref, _Stream, _RC, _OPC, _NI, _SI, _SLS, _UnitData}),
 	From ! {'MTP-TRANSFER', confirm, Ref},
 	{ok, once, State}.
 
@@ -221,7 +222,7 @@ log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData) ->
 					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
 					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
 		Other ->
-erlang:display({?MODULE, ?LINE, Other})
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Other})
 	end.
 
 -spec pause(Stream, RC, DPCs, State) -> Result
@@ -237,7 +238,7 @@ erlang:display({?MODULE, ?LINE, Other})
 %% @doc MTP-PAUSE indication
 %%%  Called when an SS7 destination is unreachable.
 pause(_Stream, _RC, _DPCs, State) ->
-erlang:display({?MODULE, ?LINE, pause, _Stream, _RC, _DPCs, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), pause, _Stream, _RC, _DPCs, State}),
 	{ok, State}.
 
 -spec resume(Stream, RC, DPCs, State) -> Result
@@ -254,7 +255,7 @@ erlang:display({?MODULE, ?LINE, pause, _Stream, _RC, _DPCs, State}),
 %%%  Called when a previously unreachable SS7 destination
 %%%  becomes reachable.
 resume(_Stream, _RC, _DPCs, State) ->
-erlang:display({?MODULE, ?LINE, resume, _Stream, _RC, _DPCs, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), resume, _Stream, _RC, _DPCs, State}),
 	{ok, State}.
 
 -spec status(Stream, RC, DPCs, State) -> Result
@@ -270,7 +271,7 @@ erlang:display({?MODULE, ?LINE, resume, _Stream, _RC, _DPCs, State}),
 %% @doc Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.
 status(_Stream, _RC, _DPCs, State) ->
-erlang:display({?MODULE, ?LINE, status, _Stream, _RC, _DPCs, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), status, _Stream, _RC, _DPCs, State}),
 	{ok, State}.
 
 -spec register(RC, NA, Keys, TMT, State) -> Result
@@ -287,7 +288,7 @@ erlang:display({?MODULE, ?LINE, status, _Stream, _RC, _DPCs, State}),
 %%		registration status of successful from its peer or
 %%		successfully processed an incoming Registration Request message.
 register(RC, NA, Keys, TMT, #state{rk = RKs} = State) ->
-erlang:display({?MODULE, ?LINE, register, RC, NA, Keys, TMT, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), register, RC, NA, Keys, TMT, State}),
 	RoutingKey = {NA, Keys, TMT},
 	case gtt:add_key(RoutingKey) of
 		ok ->
@@ -304,7 +305,7 @@ erlang:display({?MODULE, ?LINE, register, RC, NA, Keys, TMT, State}),
 %% 	message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Up message from its peer.
 asp_up(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
-erlang:display({?MODULE, ?LINE, asp_up, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), asp_up, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
 				catch gen_fsm:send_event(AS, {'M-ASP_UP', node(), EP, Assoc})
@@ -320,7 +321,7 @@ erlang:display({?MODULE, ?LINE, asp_up, State}),
 %%		message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Down message from its peer.
 asp_down(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
-erlang:display({?MODULE, ?LINE, asp_down, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), asp_down, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
 				catch gen_fsm:send_event(AS, {'M-ASP_DOWN', node(), EP, Assoc})
@@ -336,7 +337,7 @@ erlang:display({?MODULE, ?LINE, asp_down, State}),
 %%		Ack message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Active message from its peer.
 asp_active(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
-erlang:display({?MODULE, ?LINE, asp_active, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), asp_active, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
 				catch gen_fsm:send_event(AS, {'M-ASP_ACTIVE', node(), EP, Assoc})
@@ -352,7 +353,7 @@ erlang:display({?MODULE, ?LINE, asp_active, State}),
 %%		Ack message from its peer or M3UA reports that it has successfully
 %%		processed an incoming ASP Inactive message from its peer.
 asp_inactive(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
-erlang:display({?MODULE, ?LINE, asp_inactive, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), asp_inactive, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
 				catch gen_fsm:send_event(AS, {'M-ASP_INACTIVE', node(), EP, Assoc})
@@ -371,11 +372,11 @@ erlang:display({?MODULE, ?LINE, asp_inactive, State}),
 		Result :: {ok, State}.
 %% @doc Called when SGP reports Application Server (AS) state changes.
 notify(RC, Status, AspID, #state{module = m3ua_sgp_fsm} = State) ->
-erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), notify, RC, Status, AspID, State}),
 	{ok, State};
 notify(RC, Status, AspID, #state{module = m3ua_asp_fsm,
 		ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
-erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), notify, RC, Status, AspID, State}),
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
 				catch gen_fsm:send_event(AS, {'M-NOTIFY', node(), EP, Assoc, RC, Status, AspID})
@@ -393,7 +394,7 @@ erlang:display({?MODULE, ?LINE, notify, RC, Status, AspID, State}),
 		Reason :: term().
 %% @doc Called when ASP/SGP receives other `Info' messages.
 info({'MTP-TRANSFER', confirm, Ref} = _Info, #state{weights = Weights} = State) ->
-erlang:display({?MODULE, ?LINE, info, _Info, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), info, _Info, State}),
 	case lists:keytake(Ref, 2, Weights) of
 		{value, {Fsm, Ref, _Delay, StartTime}, Weights1} ->
 			Now = erlang:monotonic_time(),
@@ -411,7 +412,7 @@ erlang:display({?MODULE, ?LINE, info, _Info, State}),
 		Result :: any().
 %% @doc Called when ASP terminates.
 terminate(_Reason, State) ->
-erlang:display({?MODULE, ?LINE, terminate, _Reason, State}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), terminate, _Reason, State}),
 	ok.
 
 %%----------------------------------------------------------------------
