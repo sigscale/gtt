@@ -87,7 +87,7 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[].
+	[transfer_in].
 
 %%---------------------------------------------------------------------
 %%  Test cases
