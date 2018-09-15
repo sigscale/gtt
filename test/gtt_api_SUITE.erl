@@ -61,7 +61,7 @@ end_per_suite(_Config) ->
 -spec init_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> Config :: [tuple()].
 %% Initiation before each test case.
 %%
-init_per_testcase(TC, Config) ->
+init_per_testcase(_TC, Config) ->
 	case is_alive() of
 			true ->
 				Config;
@@ -97,9 +97,8 @@ transfer_in() ->
 	[{userdata, [{doc, "Transfer MTP3 payload to SG."}]}].
 
 transfer_in(_Config) ->
-	PC = 2305,
 	{ok, SgNode} = slave(),
-	{ok, _} = rpc:call(Sg1Node, m3ua_app, install, [[SgNode]]),
+	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
 	ok = rpc:call(SgNode, application, start, [m3ua]),
 	{ok, SgpEP} = rpc:call(SgNode, m3ua, start,
 			[gtt_m3ua_cb, 0, [{role, sgp}]]),
@@ -109,21 +108,22 @@ transfer_in(_Config) ->
 	AspPid = wait(Ref),
 	[Assoc] = m3ua:get_assoc(ClientEP),
 	ok = m3ua:asp_up(ClientEP, Assoc),
-	Keys = [{PC, [], []}],
+	OPC = 2305,
+	Keys = [{OPC, [], []}],
 	{ok, RC} =  m3ua:register(ClientEP, Assoc,
 			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	{Ref, RC, active} = wait(Ref),
 	Stream = 1,
+	DPC = rand:uniform(16777215),
 	NI = rand:uniform(4),
 	SI = rand:uniform(10),
 	SLS = rand:uniform(10),
 	Data = crypto:strong_rand_bytes(100),
-	DPC = rand:uniform(16777215),
-	ok = m3ua:transfer(Asp, Stream, RC, PC, DPC, NI, SI, SLS, Data),
+	ok = m3ua:transfer(AspPid, Stream, RC, OPC, DPC, NI, SI, SLS, Data),
 	ok = rpc:call(SgNode, m3ua, stop, [SgpEP]),
 	ok = m3ua:stop(ClientEP),
-	ok = slave:stop(AsNode).
+	ok = slave:stop(SgNode).
 
 %%---------------------------------------------------------------------
 %%  Internal functions
