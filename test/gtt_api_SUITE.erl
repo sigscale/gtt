@@ -48,6 +48,7 @@ init_per_suite(Config) ->
 	ok = application:set_env(mnesia, dir, PrivDir),
 	{ok, [m3ua_asp, m3ua_as]} = m3ua_app:install(),
 	ok = application:start(m3ua),
+	ok = application:start(sccp),
 	ok = application:start(gtt),
 	Config.
 
@@ -56,6 +57,7 @@ init_per_suite(Config) ->
 %%
 end_per_suite(_Config) ->
 	ok = application:stop(gtt),
+	ok = application:stop(sccp),
 	ok = application:stop(m3ua).
 
 -spec init_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> Config :: [tuple()].
@@ -67,9 +69,7 @@ init_per_testcase(_TC, Config) ->
 				Config;
 			false ->
 				{skip, not_alive}
-	end;
-init_per_testcase(_TestCase, Config) ->
-	Config.
+	end.
 
 -spec end_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> any().
 %% Cleanup after each test case.
