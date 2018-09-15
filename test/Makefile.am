@@ -3,14 +3,14 @@
 ##
 ## Process this file with automake to produce Makefile.in
 
-testmods = m3ua_api_SUITE
+testmods = gtt_api_SUITE
 
 check_DATA = .dialyzer_ok .common_test_ok
 
-.dialyzer_ok:	$(addsuffix .beam, $(testmods))
+.dialyzer_ok:
 	dialyzer --src $(top_srcdir)/src
 
-%.beam:$(top_srcdir)/src/%.erl
+%.beam:$(top_srcdir)/test/%.erl
 	$(ERLC) $(ERLCFLAGS) -I $(top_srcdir)/include $<
 
 .common_test_ok:	$(addsuffix .beam, $(testmods))
