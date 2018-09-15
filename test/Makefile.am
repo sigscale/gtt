@@ -3,7 +3,7 @@
 ##
 ## Process this file with automake to produce Makefile.in
 
-testmods = 
+testmods = m3ua_api_SUITE
 
 check_DATA = .dialyzer_ok .common_test_ok
 
