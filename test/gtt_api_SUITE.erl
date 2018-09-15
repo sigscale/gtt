@@ -26,7 +26,7 @@
 
 -compile(export_all).
 
--include("m3ua.hrl").
+-include_lib("m3ua/include/m3ua.hrl").
 -include_lib("common_test/include/ct.hrl").
 
 %%---------------------------------------------------------------------
