@@ -48,16 +48,12 @@ init_per_suite(Config) ->
 	ok = application:set_env(mnesia, dir, PrivDir),
 	{ok, [m3ua_asp, m3ua_as]} = m3ua_app:install(),
 	ok = application:start(m3ua),
-	ok = application:start(sccp),
-	ok = application:start(gtt),
 	Config.
 
 -spec end_per_suite(Config :: [tuple()]) -> any().
 %% Cleanup after the whole suite.
 %%
 end_per_suite(_Config) ->
-	ok = application:stop(gtt),
-	ok = application:stop(sccp),
 	ok = application:stop(m3ua).
 
 -spec init_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> Config :: [tuple()].
@@ -97,30 +93,37 @@ transfer_in() ->
 	[{userdata, [{doc, "Transfer MTP3 payload to SG."}]}].
 
 transfer_in(_Config) ->
+	Address = {127,0,0,1},
+	PC = 2305,
+	Keys = [{PC, [], []}],
 	{ok, SgNode} = slave(),
 	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
+	{ok, _} = rpc:call(SgNode, gtt_app, install, [[SgNode]]),
+	{ok, _} = rpc:call(SgNode, gtt, add_ep, [ep1, {Address, 0, []},
+			undefined, server, sgp, gtt_m3ua_cb, []]),
 	ok = rpc:call(SgNode, application, start, [m3ua]),
-	{ok, SgpEP} = rpc:call(SgNode, m3ua, start,
-			[gtt_m3ua_cb, 0, [{role, sgp}]]),
+	ok = rpc:call(SgNode, application, start, [sccp]),
+	ok = rpc:call(SgNode, application, start, [gtt]),
+	[SgpEP] = rpc:call(SgNode, m3ua, get_ep, []),
 	{_, server, sgp, {_, Port}} = m3ua:get_ep(SgpEP),
 	Ref = make_ref(),
-	{Ref, ClientEP} = m3ua:start(callback(Ref), Port, []),
+	{ok, ClientEP} = m3ua:start(callback(Ref), 0,
+			[{role, asp}, {connect, Address, Port, []}]),
 	AspPid = wait(Ref),
 	[Assoc] = m3ua:get_assoc(ClientEP),
 	ok = m3ua:asp_up(ClientEP, Assoc),
-	OPC = 2305,
-	Keys = [{OPC, [], []}],
 	{ok, RC} =  m3ua:register(ClientEP, Assoc,
-			undefined, undefined, Keys, loadshare),
+			undefined, 0, Keys, loadshare),
+	{[RC], as_inactive} = wait(Ref),
 	ok = m3ua:asp_active(ClientEP, Assoc),
-	{Ref, RC, active} = wait(Ref),
+	{_, as_active} = wait(Ref), % @todo include RC in notify
 	Stream = 1,
-	DPC = rand:uniform(16777215),
+	DPC = 2058,
 	NI = rand:uniform(4),
 	SI = rand:uniform(10),
 	SLS = rand:uniform(10),
 	Data = crypto:strong_rand_bytes(100),
-	ok = m3ua:transfer(AspPid, Stream, RC, OPC, DPC, NI, SI, SLS, Data),
+	ok = m3ua:transfer(AspPid, Stream, RC, PC, DPC, NI, SI, SLS, Data),
 	ok = rpc:call(SgNode, m3ua, stop, [SgpEP]),
 	ok = m3ua:stop(ClientEP),
 	ok = slave:stop(SgNode).
@@ -131,7 +134,7 @@ transfer_in(_Config) ->
 
 slave() ->
 	Path1 = filename:dirname(code:which(m3ua)),
-	Path2 = filename:dirname(code:which(?MODULE)),
+	Path2 = filename:dirname(code:which(gtt)),
 	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
 	{ok, Host} = inet:gethostname(),
 	Node = "as" ++ integer_to_list(erlang:unique_integer([positive])),
@@ -142,8 +145,8 @@ callback(Ref) ->
 				Pid ! {Ref, self()},
 				{ok, once, []}
 	end,
-	Fnotify = fun(RC, Status, _AspID, State, Pid) ->
-				Pid ! {Ref, RC, Status},
+	Fnotify = fun(RCs, Status, _AspID, State, Pid) ->
+				Pid ! {Ref, RCs, Status},
 				{ok, State}
 	end,
 	#m3ua_fsm_cb{init = Finit, notify = Fnotify, extra = [self()]}.
@@ -152,7 +155,7 @@ wait(Ref) ->
 	receive
 		{Ref, Pid} ->
 			Pid;
-		{Ref, RC, Status} ->
-			{RC, Status}
+		{Ref, RCs, Status} ->
+			{RCs, Status}
 	end.
 
