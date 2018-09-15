@@ -111,7 +111,7 @@ transfer_in(_Config) ->
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{PC, [], []}],
 	{ok, RC} =  m3ua:register(ClientEP, Assoc,
-			undefined, undefined, Keys, loadshare]),
+			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	{Ref, RC, active} = wait(Ref),
 	Stream = 1,
@@ -120,7 +120,7 @@ transfer_in(_Config) ->
 	SLS = rand:uniform(10),
 	Data = crypto:strong_rand_bytes(100),
 	DPC = rand:uniform(16777215),
-	ok = m3ua:transfer(Asp, Stream, RC, PC, DPC, NI, SI, SLS, Data]),
+	ok = m3ua:transfer(Asp, Stream, RC, PC, DPC, NI, SI, SLS, Data),
 	ok = rpc:call(SgNode, m3ua, stop, [SgpEP]),
 	ok = m3ua:stop(ClientEP),
 	ok = slave:stop(AsNode).
