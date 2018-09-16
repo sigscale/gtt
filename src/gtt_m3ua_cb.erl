@@ -191,7 +191,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), From, Ref, _S
 
 %% @hidden
 log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData) ->
-	case sccp_codec:sccp(UnitData) of
+	case catch sccp_codec:sccp(UnitData) of
 		#sccp_unitdata{called_party = #party_address{ri = CldRI,
 				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
 				nai = CldNAI, gt = CldGT},
