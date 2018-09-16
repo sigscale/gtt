@@ -83,65 +83,35 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[transfer_in].
+	[transfer_in_1, transfer_in_10, transfer_in_100, transfer_in_1000].
 
 %%---------------------------------------------------------------------
 %%  Test cases
 %%---------------------------------------------------------------------
 
-transfer_in() ->
-	[{userdata, [{doc, "Transfer MTP3 payload to SG."}]}].
+transfer_in_1() ->
+	[{userdata, [{doc, "Transfer MTP3 payload to SG (once)."}]}].
 
-transfer_in(_Config) ->
-	Address = {127,0,0,1},
-	PC = 2305,
-	Keys = [{PC, [], []}],
-	{ok, SgNode} = slave(),
-	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
-	{ok, _} = rpc:call(SgNode, gtt_app, install, [[SgNode]]),
-	{ok, _} = rpc:call(SgNode, gtt, add_ep, [ep1, {Address, 0, []},
-			undefined, server, sgp, gtt_m3ua_cb, []]),
-	ok = rpc:call(SgNode, application, start, [m3ua]),
-	ok = rpc:call(SgNode, application, start, [sccp]),
-	ok = rpc:call(SgNode, application, start, [gtt]),
-	[SgpEP] = rpc:call(SgNode, m3ua, get_ep, []),
-	{_, server, sgp, {_, Port}} = m3ua:get_ep(SgpEP),
-	Ref = make_ref(),
-	{ok, ClientEP} = m3ua:start(callback(Ref), 0,
-			[{role, asp}, {connect, Address, Port, []}]),
-	AspPid = wait(Ref),
-	[ClientAssoc] = m3ua:get_assoc(ClientEP),
-	ok = m3ua:asp_up(ClientEP, ClientAssoc),
-	{ok, RC} =  m3ua:register(ClientEP, ClientAssoc,
-			undefined, 0, Keys, loadshare),
-	{[RC], as_inactive} = wait(Ref),
-	ok = m3ua:asp_active(ClientEP, ClientAssoc),
-	{_, as_active} = wait(Ref), % @todo include RC in notify
-	[SgpAssoc] = rpc:call(SgNode, m3ua, get_assoc, [SgpEP]),
-	Count = 10,
-	Ftransfer = fun F(0) ->
-				ok;
-			F(N) ->
-				Stream = 1,
-				DPC = 2058,
-				NI = rand:uniform(4),
-				SI = rand:uniform(10),
-				SLS = rand:uniform(10),
-				Data = crypto:strong_rand_bytes(100),
-				ok = m3ua:transfer(AspPid,
-						Stream, RC, PC, DPC, NI, SI, SLS, Data),
-				F(N - 1)
-	end,
-	ok = Ftransfer(Count),
-	receive after 1000 -> ok end,
-	{ok, #{transfer_in := Count}} = rpc:call(SgNode,
-			m3ua, getcount, [SgpEP, SgpAssoc]),
-erlang:display({?MODULE, ?LINE, Count}),
-	ok = m3ua:stop(ClientEP),
-erlang:display({?MODULE, ?LINE, ok}),
-	ok = rpc:call(SgNode, m3ua, stop, [SgpEP]),
-erlang:display({?MODULE, ?LINE, ok}),
-	ok = slave:stop(SgNode).
+transfer_in_1(_Config) ->
+	transfer_in(1).
+
+transfer_in_10() ->
+	[{userdata, [{doc, "Transfer MTP3 payload to SG (ten)."}]}].
+
+transfer_in_10(_Config) ->
+	transfer_in(10).
+
+transfer_in_100() ->
+	[{userdata, [{doc, "Transfer MTP3 payload to SG (hundred)."}]}].
+
+transfer_in_100(_Config) ->
+	transfer_in(100).
+
+transfer_in_1000() ->
+	[{userdata, [{doc, "Transfer MTP3 payload to SG (thousand)."}]}].
+
+transfer_in_1000(_Config) ->
+	transfer_in(1000).
 
 %%---------------------------------------------------------------------
 %%  Internal functions
@@ -173,4 +143,58 @@ wait(Ref) ->
 		{Ref, RCs, Status} ->
 			{RCs, Status}
 	end.
+
+transfer_in(Count) ->
+	Address = {127,0,0,1},
+	PC = 2305,
+	Keys = [{PC, [], []}],
+	{ok, SgNode} = slave(),
+	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
+	{ok, _} = rpc:call(SgNode, gtt_app, install, [[SgNode]]),
+	{ok, _} = rpc:call(SgNode, gtt, add_ep, [ep1, {Address, 0, []},
+			undefined, server, sgp, gtt_m3ua_cb, []]),
+	ok = rpc:call(SgNode, application, start, [m3ua]),
+	ok = rpc:call(SgNode, application, start, [sccp]),
+	ok = rpc:call(SgNode, application, start, [gtt]),
+	[SgpEP] = rpc:call(SgNode, m3ua, get_ep, []),
+	{_, server, sgp, {_, Port}} = m3ua:get_ep(SgpEP),
+	Ref = make_ref(),
+	{ok, ClientEP} = m3ua:start(callback(Ref), 0,
+			[{role, asp}, {connect, Address, Port, []}]),
+	AspPid = wait(Ref),
+	[ClientAssoc] = m3ua:get_assoc(ClientEP),
+	ok = m3ua:asp_up(ClientEP, ClientAssoc),
+	{ok, RC} =  m3ua:register(ClientEP, ClientAssoc,
+			undefined, 0, Keys, loadshare),
+	{[RC], as_inactive} = wait(Ref),
+	ok = m3ua:asp_active(ClientEP, ClientAssoc),
+	{_, as_active} = wait(Ref), % @todo include RC in notify
+	[SgpAssoc] = rpc:call(SgNode, m3ua, get_assoc, [SgpEP]),
+	Ftransfer = fun F(0) ->
+				ok;
+			F(N) ->
+				Stream = 1,
+				DPC = 2058,
+				NI = rand:uniform(4),
+				SI = rand:uniform(10),
+				SLS = rand:uniform(10),
+				Data = crypto:strong_rand_bytes(100),
+				ok = m3ua:transfer(AspPid,
+						Stream, RC, PC, DPC, NI, SI, SLS, Data),
+				F(N - 1)
+	end,
+	ok = Ftransfer(Count),
+	Fcount = fun F() ->
+			case rpc:call(SgNode, m3ua, getcount, [SgpEP, SgpAssoc]) of
+				{ok, #{transfer_in := Count}} ->
+					ok;
+				{ok, #{transfer_in := N}} when N < Count ->
+					receive after 500 -> ok end,
+					F()
+			end
+	end,
+	ok = Fcount(),
+	ok = m3ua:stop(ClientEP),
+	ok = rpc:call(SgNode, m3ua, stop, [SgpEP]),
+	ok = slave:stop(SgNode).
 
