@@ -23,12 +23,9 @@
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
 %% m3ua_asp_fsm callbacks
--export([init/5, recv/9, send/11, pause/4, resume/4, status/4,
+-export([init/6, recv/9, send/11, pause/4, resume/4, status/4,
 		register/5, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, info/2, terminate/2]).
-
-%% gtt_m3ua_cb private API
--export([select_asp/2]).
 
 -include("gtt.hrl").
 -include_lib("sccp/include/sccp.hrl").
@@ -39,14 +36,18 @@
 		ep :: pid(),
 		ep_name :: term(),
 		assoc :: pos_integer(),
-		rk = [] :: [routing_key()],
-		weights = [] :: [{Fsm :: pid(),
-				Weight :: non_neg_integer(),
-				Timestamp :: integer()}]}).
+		rk = [] :: [m3ua:routing_key()],
+		tcap_nsap :: pid()}).
+-type state() :: #state{}.
 
--define(TRANSFERWAIT, 1000).
--define(BLOCKTIME, 100).
--define(RECOVERYWAIT, 10000).
+-define(SSN_SCMG, 1).
+-define(SCMG_SSA, 1).
+-define(SCMG_SSP, 2).
+-define(SCMG_SST, 3).
+-define(SCMG_SOR, 4).
+-define(SCMG_SOG, 5).
+-define(SCMG_SSC, 6).
+-define(SSN_CAMEL, 146).
 
 %%----------------------------------------------------------------------
 %%  The gtt_m3ua_cb public API
@@ -56,38 +57,39 @@
 %%  The m3ua_[asp|sgp]_fsm callabcks
 %%----------------------------------------------------------------------
 
--spec init(Module, Fsm, EP, EpName, Assoc) -> Result
+-spec init(Module, Fsm, EP, EpName, Assoc, Options) -> Result
 	when
 		Module :: atom(),
 		Fsm :: pid(),
 		EP :: pid(),
 		EpName :: term(),
 		Assoc :: pos_integer(),
+		Options :: map(),
 		Result :: {ok, Active, State} | {ok, Active, State, ASs} | {error, Reason},
 		Active :: true | false | once | pos_integer(),
-		State :: term(),
+		State :: state(),
 		Active :: true | false | once | pos_integer(),
-		State :: term(),
+		State :: state(),
 		ASs :: [{RC, RK, AsName}],
 		RC :: 0..4294967295,
 		RK :: {NA, Keys, TMT},
 		NA :: 0..4294967295 | undefined,
-		Keys :: [key()],
-		TMT :: tmt(),
+		Keys :: [m3ua:key()],
+		TMT :: m3ua:tmt(),
 		AsName :: term(),
 		Reason :: term().
 %% @doc Initialize ASP/SGP callback handler
 %%%  Called when ASP is started.
-init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc) ->
+init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc, #{tcap_nsap := TCAP} = _Options) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), init, m3ua_sgp_fsm, Fsm, EP, EpName, Assoc}),
 	State = #state{module = m3ua_sgp_fsm, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc},
+			ep = EP, ep_name = EpName, assoc = Assoc, tcap_nsap = TCAP},
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	init1(ASs, State, []);
-init(Module, Fsm, EP, EpName, Assoc) ->
+init(Module, Fsm, EP, EpName, Assoc, #{tcap_nsap := TCAP} = _Options) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), init, Module, Fsm, EP, EpName, Assoc}),
 	{ok, once, #state{module = Module, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc}}.
+			ep = EP, ep_name = EpName, assoc = Assoc, tcap_nsap = TCAP}}.
 %% @hidden
 init1([AS | T], State, Acc) ->
 	[#gtt_as{rc = RC, na = NA, keys = Keys, name = Name,
@@ -106,63 +108,46 @@ init1([], State, Acc) ->
 		SI :: byte(),
 		SLS :: byte(),
 		Data :: binary(),
-		State :: term(),
+		State :: state(),
 		Result :: {ok, Active, NewState} | {error, Reason},
 		Active :: true | false | once | pos_integer(),
-		NewState :: term(),
+		NewState :: state(),
 		Reason :: term().
 %% @doc MTP-TRANSFER indication
 %%%  Called when data has arrived for the MTP user.
-recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
-		#state{fsm = Fsm, ep = EP, ep_name = EpName, assoc = Assoc} = State)
-%		when DPC =:= 2057; DPC =:= 2065 ->
-		when DPC =:= 2073; DPC =:= 2081 ->
-	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
-%	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [6211, 2089, 6210, 2306]]),
-%	recv1(RC, 6209, 2, SI, SLS, UnitData, State, ASs);
-	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2305]]),
-	recv1(RC, 2058, 2, SI, SLS, UnitData, State, ASs);
-recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData,
-		#state{fsm = Fsm, ep = EP, ep_name = EpName, assoc = Assoc} = State)
-%		when DPC == 6209 ->
-		when DPC == 2058 ->
-	ASs = lists:flatten([gtt:find_pc(PC) || PC <- [2097, 2098]]),
-	log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
-%	recv1(RC, 2057, 0, SI, SLS, UnitData, State, ASs).
-%	recv1(RC, 2065, 0, SI, SLS, UnitData, State, ASs).
-	recv1(RC, 2073, 0, SI, SLS, UnitData, State, ASs).
-%	recv1(RC, 2081, 0, SI, SLS, UnitData, State, ASs).
-%% @hidden
-recv1(_RC, _OPC, _NI, _SI, _SLS, _UnitData, State, []) ->
-	{ok, once, State};
-recv1(RC, OPC, NI, SI, SLS, UnitData, #state{weights = Weights} = State, ASs) ->
-erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), RC, OPC, NI, SI, SLS, UnitData}),
-	MatchHead = match_head(),
-	F1 = fun({NA, Keys, Mode}) ->
-				{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
+recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
+		#state{fsm = Fsm, tcap_nsap = TCAP} = State) ->
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), RC, OPC, NI, SI, SLS, UnitData1}),
+	Fscmg = fun({ok, UD}) ->
+				case m3ua:transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, UD) of
+					ok ->
+						{ok, once, State};
+					{error, Reason} ->
+						{error, Reason}
+				end;
+			(none) ->
+				{ok, once, State}
 	end,
-	MatchConditions = [list_to_tuple(['or' | lists:map(F1, ASs)])],
-	MatchBody = [{{'$1', '$2'}}],
-	MatchFunction = {MatchHead, MatchConditions, MatchBody},
-	MatchExpression = [MatchFunction],
-	ASPs = select(MatchExpression),
-	F2 = fun F([{{_, [{PC, _, _} | _], _}, L1} | T], Acc) ->
-				L2 = [A#m3ua_as_asp.fsm || A <- L1, A#m3ua_as_asp.state == active],
-				F(T, [[{PC, A} || A <- L2] | Acc]);
-			F([], Acc) ->
-				lists:reverse(lists:flatten(Acc))
-	end,
-	case F2(ASPs, []) of
-		[] ->
-			{ok, once, State#state{weights = []}};
-		ActiveAsps ->
-			{DPC, Fsm, Delay, ActiveWeights} = ?MODULE:select_asp(ActiveAsps, Weights),
-			Tstart = erlang:monotonic_time(),
-			Ref = m3ua:cast(Fsm, 1, undefined, OPC, DPC, NI, SI, SLS, UnitData),
-			Weight = {Fsm, Ref, Delay, Tstart},
-			NewWeights = lists:keyreplace(Fsm, 1, ActiveWeights, Weight),
-erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), NewWeights}),
-			{ok, false, State#state{weights = NewWeights}}
+	case catch sccp_codec:sccp(UnitData1) of
+		#sccp_unitdata{called_party = #party_address{ri = true,
+				ssn = ?SSN_SCMG}} = UnitData2 ->
+			Fscmg(sccp_management(DPC, UnitData2));
+		#sccp_unitdata_service{called_party = #party_address{ri = true,
+				ssn = ?SSN_SCMG}} = UnitData2 ->
+			Fscmg(sccp_management(DPC, UnitData2));
+		#sccp_long_unitdata_service{called_party = #party_address{ri = true,
+				ssn = ?SSN_SCMG}} = UnitData2 ->
+			Fscmg(sccp_management(DPC, UnitData2));
+		#sccp_unitdata_service{data = Data,
+				called_party = #party_address{ssn = ?SSN_CAMEL}} ->
+			gen_server:cast(TCAP, {'N', 'UNITDATA', indication, Data}),
+			{ok, once, State};
+		UnitData2 ->
+			error_logger:info_report(["Other SCCP Message",
+					{opc, OPC}, {dpc, DPC},
+					{ni, NI}, {si, SI}, {sls, SLS},
+					{data, UnitData2}]),
+			{ok, once, State}
 	end.
 
 -spec send(From, Ref, Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
@@ -177,10 +162,10 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), NewWeights}),
 		SI :: byte(),
 		SLS :: byte(),
 		Data :: binary(),
-		State :: term(),
+		State :: state(),
 		Result :: {ok, Active, NewState} | {error, Reason},
 		Active :: true | false | once | pos_integer(),
-		NewState :: term(),
+		NewState :: state(),
 		Reason :: term().
 %% @doc MTP-TRANSFER request
 %%%  Called when data has been sent for the MTP user.
@@ -195,9 +180,9 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), From, Ref, _S
 		DPCs :: [DPC],
 		RC :: 0..4294967295 | undefined,
 		DPC :: 0..16777215,
-		State :: term(),
+		State :: state(),
 		Result :: {ok, NewState} | {error, Reason},
-		NewState :: term(),
+		NewState :: state(),
 		Reason :: term().
 %% @doc MTP-PAUSE indication
 %%%  Called when an SS7 destination is unreachable.
@@ -211,9 +196,9 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), pause, _Strea
 		RC :: 0..4294967295 | undefined,
 		DPCs :: [DPC],
 		DPC :: 0..16777215,
-		State :: term(),
+		State :: state(),
 		Result :: {ok, NewState} | {error, Reason},
-		NewState :: term(),
+		NewState :: state(),
 		Reason :: term().
 %% @doc MTP-RESUME indication.
 %%%  Called when a previously unreachable SS7 destination
@@ -228,9 +213,9 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), resume, _Stre
 		RC :: 0..4294967295 | undefined,
 		DPCs :: [DPC],
 		DPC :: 0..16777215,
-		State :: term(),
+		State :: state(),
 		Result :: {ok, NewState} | {error, Reason},
-		NewState :: term(),
+		NewState :: state(),
 		Reason :: term().
 %% @doc Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.
@@ -242,11 +227,11 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), status, _Stre
 	when
 		RC :: 0..4294967295 | undefined,
 		NA :: 0..4294967295 | undefined,
-		Keys :: [key()],
-		TMT :: tmt(),
-		State :: term(),
+		Keys :: [m3ua:key()],
+		TMT :: m3ua:tmt(),
+		State :: state(),
 		Result :: {ok, NewState} | {error, Reason},
-		NewState :: term(),
+		NewState :: state(),
 		Reason :: term().
 %%  @doc Called when Registration Response message with a
 %%		registration status of successful from its peer or
@@ -263,7 +248,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), register, RC,
 
 -spec asp_up(State) -> Result
 	when
-		State :: term(),
+		State :: state(),
 		Result :: {ok, State}.
 %% @doc Called when ASP reports that it has received an ASP UP Ack
 %% 	message from its peer or M3UA reports that it has successfully
@@ -279,7 +264,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), asp_up, State
 
 -spec asp_down(State) -> Result
 	when
-		State :: term(),
+		State :: state(),
 		Result :: {ok, State}.
 %% @doc Called when ASP reports that it has received an ASP Down Ack
 %%		message from its peer or M3UA reports that it has successfully
@@ -295,7 +280,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), asp_down, Sta
 
 -spec asp_active(State) -> Result
 	when
-		State :: term(),
+		State :: state(),
 		Result :: {ok, State}.
 %% @doc Called when ASP reports that it has received an ASP Active
 %%		Ack message from its peer or M3UA reports that it has successfully
@@ -311,7 +296,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), asp_active, S
 
 -spec asp_inactive(State) -> Result
 	when
-		State :: term(),
+		State :: state(),
 		Result :: {ok, State}.
 %% @doc Called when ASP reports that it has received an ASP Inactive
 %%		Ack message from its peer or M3UA reports that it has successfully
@@ -332,7 +317,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), asp_inactive,
 				| insufficient_asp_active | alternate_asp_active
 				| asp_failure,
 		AspID :: undefined | pos_integer(),
-		State :: term(),
+		State :: state(),
 		Result :: {ok, State}.
 %% @doc Called when SGP reports Application Server (AS) state changes.
 notify(RC, Status, AspID, #state{module = m3ua_sgp_fsm} = State) ->
@@ -351,152 +336,111 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), notify, RC, S
 -spec info(Info, State) -> Result
 	when
 		Info :: term(),
-		State :: term(),
+		State :: state(),
 		Result :: {ok, Active, NewState} | {error, Reason},
 		Active :: true | false | once | pos_integer(),
-		NewState :: term(),
+		NewState :: state(),
 		Reason :: term().
 %% @doc Called when ASP/SGP receives other `Info' messages.
-info({'MTP-TRANSFER', confirm, Ref} = _Info, #state{weights = Weights} = State) ->
+info({'MTP-TRANSFER', confirm, _Ref} = _Info, State) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), info, _Info, State}),
-	case lists:keytake(Ref, 2, Weights) of
-		{value, {Fsm, Ref, _Delay, StartTime}, Weights1} ->
-			Now = erlang:monotonic_time(),
-			NewDelay = Now - StartTime,
-			Weights2 = [{Fsm, undefined, NewDelay, Now} | Weights1],
-			{ok, once, State#state{weights = Weights2}};
-		false ->
-			{ok, once, State}
-	end.
+	{ok, once, State}.
 
 -spec terminate(Reason, State) -> Result
 	when
 		Reason :: term(),
-		State :: term(),
+		State :: state(),
 		Result :: any().
 %% @doc Called when ASP terminates.
 terminate(_Reason, State) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), terminate, _Reason, State}),
 	ok.
 
+-spec sccp_management(DPC, UnitData) -> Result
+	when
+		DPC :: 0..16383,
+		UnitData :: #sccp_unitdata{} | #sccp_unitdata_service{}
+				| #sccp_long_unitdata_service{},
+		Result :: {ok, UnitData} | none.
+%% @doc Handle SCCP Management Procedures
+sccp_management(DPC, #sccp_unitdata{called_party = CalledParty,
+		calling_party = CallingParty, data = Data} = _UnitData) ->
+	sccp_management1(DPC, CalledParty, CallingParty, Data);
+sccp_management(DPC, #sccp_unitdata_service{called_party = CalledParty,
+		calling_party = CallingParty, data = Data}) ->
+	sccp_management1(DPC, CalledParty, CallingParty, Data);
+sccp_management(DPC, #sccp_long_unitdata_service{called_party = CalledParty,
+		calling_party = CallingParty, long_data = Data}) ->
+	sccp_management1(DPC, CalledParty, CallingParty, Data).
+%% @hidden
+sccp_management1(_DPC, CalledParty, CallingParty,
+		<<?SCMG_SSA, SSN, PC:2/binary, _SMI, _Rest/binary>>) ->
+	error_logger:info_report(["SCCP Management: "
+			"Subsystem Allowed",
+			{called, CalledParty},
+			{calling, CallingParty},
+			{ssn, SSN}, {pc, sccp:point_code(sccp_codec:point_code(PC))}]),
+	none;
+sccp_management1(_DPC, CalledParty, CallingParty,
+		<<?SCMG_SSP, SSN, PC:2/binary, _SMI, _Rest/binary>>) ->
+	error_logger:info_report(["SCCP Management: "
+			"Subsystem Prohibited",
+			{called, CalledParty},
+			{calling, CallingParty},
+			{ssn, SSN}, {pc, sccp:point_code(sccp_codec:point_code(PC))}]),
+	none;
+sccp_management1(DPC, CalledParty, CallingParty,
+		<<?SCMG_SST, SSN, PC:2/binary, _SMI, _Rest/binary>>) ->
+	error_logger:info_report(["SCCP Management: "
+			"Subsystem Status Test",
+			{called, CalledParty},
+			{calling, CallingParty},
+			{ssn, SSN}, {pc, sccp:point_code(sccp_codec:point_code(PC))}]),
+	LocalPC = sccp_codec:point_code(DPC),
+	SSA = <<?SCMG_SSA, SSN, LocalPC/binary, 0>>,
+	SCMGParty = #party_address{ri = true, ssn = ?SSN_SCMG},
+	UnitData = #sccp_unitdata{class = 0,
+			called_party = SCMGParty,
+			calling_party = SCMGParty,
+			data = SSA},
+	{ok, sccp_codec:sccp(UnitData)};
+sccp_management1(_DPC, CalledParty, CallingParty,
+		<<?SCMG_SOR, SSN, PC:2/binary, _SMI, _Rest/binary>>) ->
+	error_logger:info_report(["SCCP Management: "
+			"Subsystem Out-of-Service Request",
+			{called, CalledParty},
+			{calling, CallingParty},
+			{ssn, SSN}, {pc, sccp:point_code(sccp_codec:point_code(PC))}]),
+	none;
+sccp_management1(_DPC, CalledParty, CallingParty,
+		<<?SCMG_SOG, SSN, PC:2/binary, _SMI, _Rest/binary>>) ->
+	error_logger:info_report(["SCCP Management: "
+			"Subsystem Out-of-Service Grant",
+			{called, CalledParty},
+			{calling, CallingParty},
+			{ssn, SSN}, {pc, sccp:point_code(sccp_codec:point_code(PC))}]),
+	none;
+sccp_management1(_DPC, CalledParty, CallingParty,
+		<<?SCMG_SSC, SSN, PC:2/binary, _SMI, _:4, Level:4, _Rest/binary>>) ->
+	error_logger:info_report(["SCCP Management: "
+			"SCCP/Subsystem Congested",
+			{called, CalledParty},
+			{calling, CallingParty},
+			{ssn, SSN}, {pc, sccp:point_code(sccp_codec:point_code(PC))},
+			{level, Level}]),
+	none;
+sccp_management1(DPC, CalledParty, CallingParty, Other) ->
+	error_logger:info_report(["SCCP Management: Other",
+			{called, CalledParty},
+			{calling, CallingParty},
+			{dpc, DPC}, {data, Other}]),
+	none.
+
 %%----------------------------------------------------------------------
 %%  private API functions
 %%----------------------------------------------------------------------
 
--spec select_asp(ActiveAsps, Weights) -> Result
-	when
-		ActiveAsps :: [{DPC, Fsm}],
-		DPC :: 0..4294967295,
-		Fsm :: pid(),
-		Weights :: [{Fsm, Weight, Timestamp}],
-		Weight :: non_neg_integer(),
-		Timestamp :: integer(),
-		ActiveWeights :: [{Fsm, Weight, Timestamp}],
-		Result :: {DPC, Fsm, Delay, ActiveWeights},
-		Delay :: pos_integer().
-%% @doc Select destination ASP with lowest weight.
-select_asp(ActiveAsps, Weights) ->
-	Now = erlang:monotonic_time(),
-	ActiveWeights = select_asp1(Weights, ActiveAsps, Now, []),
-	Fblock = fun({_, _, N, _}) when N < ?BLOCKTIME ->
-				true;
-			(_) ->
-				false
-	end,
-	{Fsm, Delay} = case lists:takewhile(Fblock, ActiveWeights) of
-		[{Pid, _, Delay1, _}] ->
-			{Pid, Delay1};
-		[] ->
-			Ftimeout = fun({_, _, N, _}) when N < ?TRANSFERWAIT->
-						true;
-					(_) ->
-						false
-			end,
-			case lists:takewhile(Ftimeout, ActiveWeights) of
-				[] ->
-					Len = length(ActiveWeights),
-					{Pid, _, Delay1, _} = lists:nth(rand:uniform(Len), ActiveWeights),
-					{Pid, Delay1};
-				Responding ->
-					Len = length(Responding),
-					{Pid, _, Delay1, _} = lists:nth(rand:uniform(Len), Responding),
-					{Pid, Delay1}
-			end;
-		NonBlocking ->
-			Len = length(NonBlocking),
-			{Pid, _, Delay1, _} = lists:nth(rand:uniform(Len), NonBlocking),
-			{Pid, Delay1}
-	end,
-	{DPC, Fsm} = lists:keyfind(Fsm, 2, ActiveAsps),
-	{DPC, Fsm, Delay, ActiveWeights}.
-%% @hidden
-select_asp1([{Fsm, _, _, Timestamp} = H | T] = _Weights, ActiveAsps, Now, Acc) ->
-	case lists:keymember(Fsm, 2, ActiveAsps) of
-		true when (Now - Timestamp) > ?RECOVERYWAIT ->
-			select_asp1(T, ActiveAsps, Now, [{Fsm, undefined, 1, Now} | Acc]);
-		true ->
-			select_asp1(T, ActiveAsps, Now, [H | Acc]);
-		false ->
-			select_asp1(T, ActiveAsps, Now, Acc)
-	end;
-select_asp1([] = _Weights, ActiveAsps, Now, Acc) ->
-	select_asp2(ActiveAsps, Now, lists:reverse(Acc)).
-%% @hidden
-select_asp2([{_, Fsm} | T] = _ActiveAsps, Now, Weights) ->
-	case lists:keymember(Fsm, 1, Weights) of
-		true ->
-			select_asp2(T, Now, Weights);
-		false ->
-			select_asp2(T, Now, [{Fsm, undefined, 0, Now} | Weights])
-	end;
-select_asp2([] = _ActiveAsps, _Now, Weights) ->
-	lists:keysort(2, Weights).
-
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
-
--dialyzer([{nowarn_function, [match_head/0]}, no_contracts]).
-match_head() ->
-	#m3ua_as{rk = '$1', asp = '$2', state = active, _ = '_'}.
-
--dialyzer([{nowarn_function, [select/1]}, no_return]).
-select(MatchExpression) ->
-	mnesia:dirty_select(m3ua_as, MatchExpression).
-
-%% @hidden
-log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData) ->
-	case catch sccp_codec:sccp(UnitData) of
-		#sccp_unitdata{called_party = #party_address{ri = CldRI,
-				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
-				nai = CldNAI, gt = CldGT},
-				calling_party = #party_address{ri = ClgRI, ssn = ClgSSN,
-				translation_type = ClgTT, numbering_plan = ClgNP,
-				nai = ClgNAI, gt = ClgGT}, data = _Payload} ->
-			error_logger:info_report(["MTP-TRANSFER request",
-					{fsm, Fsm}, {ep, EP}, {name, EpName}, {assoc, Assoc},
-					{stream, Stream}, {rc, RC}, {opc, OPC},
-					{dpc, DPC}, {ni, NI}, {si, SI}, {sls, SLS},
-					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
-					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
-					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
-		#sccp_unitdata_service{type = Type,
-            return_cause = ReturnCause,
-				called_party = #party_address{ri = CldRI,
-				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
-				nai = CldNAI, gt = CldGT},
-				calling_party = #party_address{ri = ClgRI, ssn = ClgSSN,
-				translation_type = ClgTT, numbering_plan = ClgNP,
-				nai = ClgNAI, gt = ClgGT}, data = _Payload} ->
-			error_logger:info_report(["MTP-TRANSFER request",
-					{fsm, Fsm}, {ep, EP}, {name, EpName}, {assoc, Assoc},
-					{stream, Stream}, {rc, RC}, {opc, OPC},
-					{dpc, DPC}, {ni, NI}, {si, SI}, {sls, SLS},
-					{type, Type}, {return_cause, ReturnCause},
-					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
-					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
-					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
-		Other ->
-erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Other})
-	end.
 
