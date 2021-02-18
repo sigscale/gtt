@@ -189,42 +189,6 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), From, Ref, _S
 	From ! {'MTP-TRANSFER', confirm, Ref},
 	{ok, once, State}.
 
-%% @hidden
-log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData) ->
-	case catch sccp_codec:sccp(UnitData) of
-		#sccp_unitdata{called_party = #party_address{ri = CldRI,
-				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
-				nai = CldNAI, gt = CldGT},
-				calling_party = #party_address{ri = ClgRI, ssn = ClgSSN,
-				translation_type = ClgTT, numbering_plan = ClgNP,
-				nai = ClgNAI, gt = ClgGT}, data = _Payload} ->
-			error_logger:info_report(["MTP-TRANSFER request",
-					{fsm, Fsm}, {ep, EP}, {name, EpName}, {assoc, Assoc},
-					{stream, Stream}, {rc, RC}, {opc, OPC},
-					{dpc, DPC}, {ni, NI}, {si, SI}, {sls, SLS},
-					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
-					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
-					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
-		#sccp_unitdata_service{type = Type,
-            return_cause = ReturnCause,
-				called_party = #party_address{ri = CldRI,
-				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
-				nai = CldNAI, gt = CldGT},
-				calling_party = #party_address{ri = ClgRI, ssn = ClgSSN,
-				translation_type = ClgTT, numbering_plan = ClgNP,
-				nai = ClgNAI, gt = ClgGT}, data = _Payload} ->
-			error_logger:info_report(["MTP-TRANSFER request",
-					{fsm, Fsm}, {ep, EP}, {name, EpName}, {assoc, Assoc},
-					{stream, Stream}, {rc, RC}, {opc, OPC},
-					{dpc, DPC}, {ni, NI}, {si, SI}, {sls, SLS},
-					{type, Type}, {return_cause, ReturnCause},
-					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
-					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
-					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
-		Other ->
-erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Other})
-	end.
-
 -spec pause(Stream, RC, DPCs, State) -> Result
 	when
 		Stream :: pos_integer(),
@@ -499,4 +463,40 @@ match_head() ->
 -dialyzer([{nowarn_function, [select/1]}, no_return]).
 select(MatchExpression) ->
 	mnesia:dirty_select(m3ua_as, MatchExpression).
+
+%% @hidden
+log(Fsm, EP, EpName, Assoc, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData) ->
+	case catch sccp_codec:sccp(UnitData) of
+		#sccp_unitdata{called_party = #party_address{ri = CldRI,
+				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
+				nai = CldNAI, gt = CldGT},
+				calling_party = #party_address{ri = ClgRI, ssn = ClgSSN,
+				translation_type = ClgTT, numbering_plan = ClgNP,
+				nai = ClgNAI, gt = ClgGT}, data = _Payload} ->
+			error_logger:info_report(["MTP-TRANSFER request",
+					{fsm, Fsm}, {ep, EP}, {name, EpName}, {assoc, Assoc},
+					{stream, Stream}, {rc, RC}, {opc, OPC},
+					{dpc, DPC}, {ni, NI}, {si, SI}, {sls, SLS},
+					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
+					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
+					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
+		#sccp_unitdata_service{type = Type,
+            return_cause = ReturnCause,
+				called_party = #party_address{ri = CldRI,
+				ssn = CldSSN, translation_type = CldTT, numbering_plan = CldNP,
+				nai = CldNAI, gt = CldGT},
+				calling_party = #party_address{ri = ClgRI, ssn = ClgSSN,
+				translation_type = ClgTT, numbering_plan = ClgNP,
+				nai = ClgNAI, gt = ClgGT}, data = _Payload} ->
+			error_logger:info_report(["MTP-TRANSFER request",
+					{fsm, Fsm}, {ep, EP}, {name, EpName}, {assoc, Assoc},
+					{stream, Stream}, {rc, RC}, {opc, OPC},
+					{dpc, DPC}, {ni, NI}, {si, SI}, {sls, SLS},
+					{type, Type}, {return_cause, ReturnCause},
+					{ri, {CldRI, ClgRI}}, {ssn, {CldSSN, ClgSSN}},
+					{tt, {CldTT, ClgTT}}, {np, {CldNP, ClgNP}},
+					{nai, {CldNAI, ClgNAI}}, {gt, {CldGT, ClgGT}}]);
+		Other ->
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Other})
+	end.
 
