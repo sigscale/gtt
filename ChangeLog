@@ -1,3 +1,7 @@
+2021-02-19  Vance Shipley <vances@sigscale.org>
+
+	* refactor for use with tcap
+
 2018-09-05  Vance Shipley <vances@sigscale.org>
 
 	* update for blocking api change
