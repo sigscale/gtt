@@ -15,8 +15,8 @@
 %%% limitations under the License.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @doc This {@link //stdlib/gen_server. gen_server} behaviour callback
-%%% 	module implements the socket listener for incoming SCTP connections
-%%%   in the {@link //gtt. gtt} application.
+%%% 	module implements the service access point for the public API
+%%%   of the {@link //gtt. gtt} application.
 %%%
 -module(gtt_server).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
