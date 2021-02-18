@@ -52,5 +52,5 @@
 		na :: 0..4294967295 | '_' | undefined,
 		si = [] :: [byte()] | '_',
 		opc = [] :: [0..16777215] | '_',
-		as :: routing_key() | '$1' | undefined}).
+		as :: m3ua:routing_key() | '$1' | undefined}).
 
