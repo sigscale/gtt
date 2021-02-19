@@ -1,4 +1,4 @@
-# Global Title Translation (GTT)
+# [SigScale](http://www.sigscale.org) Global Title Translation (GTT)
 
 The 'gtt` application implements an SCCP stack as an M3UA-User,  
 performing SCCP Management procedures and transfer of SCCP PDUs.
