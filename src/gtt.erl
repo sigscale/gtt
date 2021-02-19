@@ -180,7 +180,7 @@ add_as(Name, Role, RC, NA, Keys, Mode, MinAsp, MaxAsp)
 					min_asp = MinAsp, max_asp = MaxAsp},
 			mnesia:write(gtt_as, GttAs, write),
 			RK = {NA, Keys, Mode},
-			Fpc =fun({DPC, SIs, OPCs}) ->
+			Fpc = fun({DPC, SIs, OPCs}) ->
 				PC = #gtt_pc{dpc = DPC, na = NA, si = SIs, opc = OPCs, as = RK},
 				mnesia:write(PC)
 			end,
