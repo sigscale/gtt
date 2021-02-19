@@ -10,11 +10,11 @@
 
 Add a Signaling Gateway (SG) with point code 666 named sg1:
 ```
-1> gtt:add_as(sg1, sg, 0, [{666, [], []}], loadshare, 1, 4).            
+1> gtt:add_as(sg1, sg, 0, 0, [{666, [], []}], loadshare, 1, 4).
 '''
 
 Add an SCTP server endpoint on port 2905 named ep1:
 ```
-gtt:add_ep(ep1, {{0,0,0,0}, 2905,[{registration,static}]}, undefined, server, sgp, gtt_m3ua_cb, [sg1]).                               
+gtt:add_ep(ep1, {{0,0,0,0}, 2905,[{registration,static}]}, undefined, server, sgp, gtt_m3ua_cb, undefined, [sg1]).
 '''
 

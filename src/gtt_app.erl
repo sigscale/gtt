@@ -109,9 +109,11 @@ start4(TopSup, AsFsmSup, EPs, EP, [H | T], Acc) ->
 			end
 	end;
 start4(TopSup, AsFsmSup, EPs, #gtt_ep{sctp_role = server,
-		name = Name, m3ua_role = Role, callback = CallBack,
+		name = Name, m3ua_role = Role,
+		callback = CallBack, cb_opts = CbOpts,
 		local = {Laddress, Lport, Loptions}}, [], Acc) ->
-	Options = [{name, Name}, {role, Role}, {ip, Laddress} | Loptions],
+	Options = [{name, Name}, {role, Role}, {ip, Laddress},
+			{cb_opts, CbOpts} | Loptions],
 	case m3ua:start(CallBack, Lport, Options) of
 		{ok, _EndPoint} ->
 			start3(TopSup, AsFsmSup, EPs, Acc);
@@ -119,11 +121,13 @@ start4(TopSup, AsFsmSup, EPs, #gtt_ep{sctp_role = server,
 			{error, Reason}
 	end;
 start4(TopSup, AsFsmSup, EPs, #gtt_ep{sctp_role = client,
-		name = Name, m3ua_role = Role, callback = CallBack,
+		name = Name, m3ua_role = Role,
+		callback = CallBack, cb_opts = CbOpts,
 		local = {Laddress, Lport, Loptions},
 		remote = {Raddress, Rport, Roptions}}, [], Acc) ->
 	Options = [{name, Name}, {role, Role}, {ip, Laddress},
-			{connect, Raddress, Rport, Roptions} | Loptions],
+			{connect, Raddress, Rport, Roptions},
+			{cb_opts, CbOpts} | Loptions],
 	case m3ua:start(CallBack, Lport, Options) of
 		{ok, _EndPoint} ->
 			start3(TopSup, AsFsmSup, EPs, Acc);

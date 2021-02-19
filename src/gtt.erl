@@ -21,7 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the public API
--export([add_ep/7, add_ep/8, delete_ep/1, get_ep/0, find_ep/1,
+-export([add_ep/8, add_ep/9, delete_ep/1, get_ep/0, find_ep/1,
 		stat_ep/1, stat_ep/2]).
 -export([add_as/8, delete_as/1, get_as/0, find_as/1]).
 -export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
@@ -37,8 +37,8 @@
 
 -export_type([ep_ref/0, as_ref/0]).
 
--spec add_ep(Name, Local, Remote,
-		SctpRole, M3uaRole, Callback, ApplicationServers) -> Result
+-spec add_ep(Name, Local, Remote, SctpRole, M3uaRole,
+		Callback, Options, ApplicationServers) -> Result
 	when
 		Name :: ep_ref(),
 		Local :: {Address, Port, Options},
@@ -46,6 +46,7 @@
 		SctpRole :: client | server,
 		M3uaRole :: sgp | asp,
 		Callback :: atom() | #m3ua_fsm_cb{},
+		Options :: term(),
 		ApplicationServers :: [as_ref()],
 		Port :: inet:port_number(),
 		Address :: inet:ip_address(),
@@ -53,14 +54,14 @@
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
-%% @equiv add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback, node())
+%% @equiv add_ep(Name, Local, Remote, SctpRole, M3uaRole, Callback, Options, node())
 add_ep(Name, Local, Remote, SctpRole, M3uaRole,
-		Callback, ApplicationServers) ->
+		Callback, Options, ApplicationServers) ->
 	add_ep(Name, Local, Remote, SctpRole, M3uaRole,
-			Callback, ApplicationServers, node()).
+			Callback, Options, ApplicationServers, node()).
 
--spec add_ep(Name, Local, Remote,
-		SctpRole, M3uaRole, Callback, ApplicationServers, Node) -> Result
+-spec add_ep(Name, Local, Remote, SctpRole, M3uaRole,
+		Callback, Options, ApplicationServers, Node) -> Result
 	when
 		Name :: ep_ref(),
 		Local :: {Address, Port, Options},
@@ -68,6 +69,7 @@ add_ep(Name, Local, Remote, SctpRole, M3uaRole,
 		SctpRole :: client | server,
 		M3uaRole :: sgp | asp,
 		Callback :: atom() | #m3ua_fsm_cb{},
+		Options :: term(),
 		ApplicationServers :: [as_ref()],
 		Node :: node(),
 		Port :: inet:port_number(),
@@ -78,7 +80,8 @@ add_ep(Name, Local, Remote, SctpRole, M3uaRole,
 		Reason :: term().
 %% @doc Create an SCTP endpoint specification.
 add_ep(Name, {LocalAddr, LocalPort, _} = Local, Remote,
-		SctpRole, M3uaRole, Callback, ApplicationServers, Node) when
+		SctpRole, M3uaRole, Callback, Options,
+		ApplicationServers, Node) when
 		is_tuple(LocalAddr), is_integer(LocalPort),
 		((is_tuple(Remote)) orelse (Remote == undefined)),
 		((is_tuple(Callback)) orelse (is_atom(Callback))),
@@ -86,9 +89,11 @@ add_ep(Name, {LocalAddr, LocalPort, _} = Local, Remote,
 		((M3uaRole == sgp) orelse (M3uaRole == asp)),
 		is_list(ApplicationServers) ->
 	F = fun() ->
-			GttEP = #gtt_ep{name = Name, local = Local,
-				remote = Remote, sctp_role = SctpRole, m3ua_role = M3uaRole,
-				callback = Callback, as = ApplicationServers, node = Node},
+			GttEP = #gtt_ep{name = Name,
+				local = Local, remote = Remote,
+				sctp_role = SctpRole, m3ua_role = M3uaRole,
+				callback = Callback, cb_opts = Options,
+				as = ApplicationServers, node = Node},
 			mnesia:write(gtt_ep, GttEP, write),
 			GttEP
 	end,

@@ -1,6 +1,6 @@
 %%% gtt.hrl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @copyright 2015-2018 SigScale Global Inc.
+%%% @copyright 2015-2021 SigScale Global Inc.
 %%% @end
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 		sctp_role :: client | server | '_',
 		m3ua_role :: sgp | asp | '_',
 		callback :: atom() | #m3ua_fsm_cb{},
+		cb_opts :: term() | undefined,
 		local :: {Address :: inet:ip_address(),
 				Port :: inet:port_number(), Options :: list()} | '_',
 		remote :: undefined | {Address :: inet:ip_address(),
