@@ -35,6 +35,12 @@
 %%  The gtt public API
 %%----------------------------------------------------------------------
 
+-type ep_ref() :: term().
+%% Uniqiuely identifies an M3UA Endpoint.
+
+-type as_ref() :: term().
+%% Uniqiuely identifies an Application Server (AS).
+
 -export_type([ep_ref/0, as_ref/0]).
 
 -spec add_ep(Name, Local, Remote, SctpRole, M3uaRole,
@@ -204,7 +210,7 @@ add_as(Name, Role, RC, NA, Keys, Mode, MinAsp, MaxAsp)
 		Name :: as_ref(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
-%% @doc Delete an Application Server (AS) specification.
+%% @doc Delete an Application Server specification.
 delete_as(Name) ->
 	F = fun() ->
 				mnesia:delete(gtt_as, Name, write)

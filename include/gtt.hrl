@@ -18,11 +18,8 @@
 
 -include_lib("m3ua/include/m3ua.hrl").
 
--type ep_ref() :: term().
--type as_ref() :: term().
-
 -record(gtt_ep,
-		{name :: ep_ref(),
+		{name :: gtt:ep_ref(),
 		sctp_role :: client | server | '_',
 		m3ua_role :: sgp | asp | '_',
 		callback :: atom() | #m3ua_fsm_cb{},
@@ -31,12 +28,12 @@
 				Port :: inet:port_number(), Options :: list()} | '_',
 		remote :: undefined | {Address :: inet:ip_address(),
 				Port :: inet:port_number(), Options :: list()} | '_',
-		as = [] :: [AS :: as_ref()] | '_',
+		as = [] :: [AS :: gtt:as_ref()] | '_',
 		node :: node(),
 		ep :: pid() | undefined | '_'}). % to be removed
 
 -record(gtt_as,
-		{name :: as_ref(),
+		{name :: gtt:as_ref(),
 		role :: as | sg,
 		rc :: undefined | 0..4294967295,
 		na :: undefined | 0..4294967295,
