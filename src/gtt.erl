@@ -303,7 +303,7 @@ delete_key({NA, Keys, _} = Key) when is_list(Keys),
 -spec find_pc(DPC) -> Result
 	when
 		DPC :: 0..16777215,
-		Result :: [as_ref()].
+		Result :: [m3ua:routing_key()].
 %% @equiv find_pc(undefined, DPC, undefined, undefined)
 find_pc(DPC) ->
 	find_pc(undefined, DPC, undefined, undefined).
