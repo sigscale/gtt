@@ -27,7 +27,7 @@
                   m3ua_rest_get, mod_get, mod_disk_log]},
             {port, 8080}, 
             {server_root, "./"},
-            {alias, {"/doc", lib/@PACKAGE@-@VERSION@/doc"}},
+            {alias, {"/doc", "lib/@PACKAGE@-@VERSION@/doc"}},
             {document_root, "lib/@PACKAGE@-@VERSION@/priv/www"}]}]}]},
 {m3ua,
       []},
