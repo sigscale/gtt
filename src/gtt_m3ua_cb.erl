@@ -19,6 +19,11 @@
 %%%	module implements a handler for a User Service Access Point (USAP)
 %%% 	of an M3UA stack SAP in the {@link //gtt. gtt} application.
 %%%
+%%% 	This module implements a Signalling Connection Control Part (SCCP)
+%%% 	layer as an MTP3-User. A Signaling Gateway Process (SGP) started
+%%% 	with this callback module shall perform an SCCP Routing Control (SCRC)
+%%% 	function as well as SCCP Management (SCMG).
+%%%
 -module(gtt_m3ua_cb).
 -copyright('Copyright (c) 2018 SigScale Global Inc.').
 
@@ -37,7 +42,7 @@
 		ep_name :: term(),
 		assoc :: pos_integer(),
 		rk = [] :: [m3ua:routing_key()],
-		tcap_nsap :: pid()}).
+		camel :: pid()}).
 -type state() :: #state{}.
 
 -define(SSN_SCMG, 1).
@@ -80,16 +85,16 @@
 		Reason :: term().
 %% @doc Initialize ASP/SGP callback handler
 %%%  Called when ASP is started.
-init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc, #{tcap_nsap := TCAP} = _Options) ->
+init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc, #{camel := CAMEL} = _Options) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), init, m3ua_sgp_fsm, Fsm, EP, EpName, Assoc}),
 	State = #state{module = m3ua_sgp_fsm, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc, tcap_nsap = TCAP},
+			ep = EP, ep_name = EpName, assoc = Assoc, camel = CAMEL},
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	init1(ASs, State, []);
-init(Module, Fsm, EP, EpName, Assoc, #{tcap_nsap := TCAP} = _Options) ->
+init(Module, Fsm, EP, EpName, Assoc, #{camel := CAMEL} = _Options) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), init, Module, Fsm, EP, EpName, Assoc}),
 	{ok, once, #state{module = Module, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc, tcap_nsap = TCAP}}.
+			ep = EP, ep_name = EpName, assoc = Assoc, camel = CAMEL}}.
 %% @hidden
 init1([AS | T], State, Acc) ->
 	[#gtt_as{rc = RC, na = NA, keys = Keys, name = Name,
@@ -116,7 +121,7 @@ init1([], State, Acc) ->
 %% @doc MTP-TRANSFER indication
 %%%  Called when data has arrived for the MTP user.
 recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
-		#state{fsm = Fsm, tcap_nsap = TCAP} = State) ->
+		#state{fsm = Fsm, camel = CAMEL} = State) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), RC, OPC, NI, SI, SLS, UnitData1}),
 	Fscmg = fun({ok, UD}) ->
 				case m3ua:transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, UD) of
@@ -140,7 +145,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), RC, OPC, NI, 
 			Fscmg(sccp_management(DPC, UnitData2));
 		#sccp_unitdata_service{data = Data,
 				called_party = #party_address{ssn = ?SSN_CAMEL}} ->
-			gen_server:cast(TCAP, {'N', 'UNITDATA', indication, Data}),
+			gen_server:cast(CAMEL, {'N', 'UNITDATA', indication, Data}),
 			{ok, once, State};
 		UnitData2 ->
 			error_logger:info_report(["Other SCCP Message",
@@ -171,7 +176,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), RC, OPC, NI, 
 %%%  Called when data has been sent for the MTP user.
 send(From, Ref, _Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _UnitData, State) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), From, Ref, _Stream, _RC, _OPC, _NI, _SI, _SLS, _UnitData}),
-	From ! {'MTP-TRANSFER', confirm, Ref},
+	% From ! {'MTP-TRANSFER', confirm, Ref},
 	{ok, once, State}.
 
 -spec pause(Stream, RC, DPCs, State) -> Result
