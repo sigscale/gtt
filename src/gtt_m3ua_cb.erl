@@ -122,7 +122,7 @@ init1([], State, Acc) ->
 %%%  Called when data has arrived for the MTP user.
 recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 		#state{fsm = Fsm, camel = CAMEL} = State) ->
-erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Stream, RC, OPC, NI, SI, SLS, UnitData1}),
+erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1}),
 	Fscmg = fun({ok, UD}) ->
 				case m3ua:transfer(Fsm, Stream, RC, DPC, OPC, NI, SI, SLS, UD) of
 					ok ->
