@@ -27,7 +27,7 @@ Add a Signaling Gateway (SG) with point code 666 named sg1:
 
 Add an SCTP server endpoint on port 2905 named ep1:
 ```
-gtt:add_ep(ep1, {{0,0,0,0}, 2905,[{registration,static}]}, undefined, server, sgp, gtt_m3ua_cb, undefined, [sg1]).
+gtt:add_ep(ep1, {{0,0,0,0}, 2905,[{registration,static}]}, undefined, server, sgp, gtt_m3ua_cb, #{camel => cse_tsl}, [sg1]).
 '''
 
 ==Database Schema==
