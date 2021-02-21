@@ -35,7 +35,7 @@
 			terminate/3, code_change/4]).
 
 -record(statedata,
-		{name :: as_ref(),
+		{name :: gtt:as_ref(),
 		role :: as | sg,
 		rc :: undefined | 0..4294967295,
 		na :: undefined | 0..4294967295,
