@@ -34,6 +34,7 @@
 
 -include("gtt.hrl").
 -include_lib("sccp/include/sccp.hrl").
+-include_lib("tcap/include/sccp_primitive.hrl").
 
 -record(state,
 		{module :: atom(),
@@ -53,6 +54,9 @@
 -define(SCMG_SOG, 5).
 -define(SCMG_SSC, 6).
 -define(SSN_CAMEL, 146).
+
+-define(sequenceControl(Class), (1 == (Class band 1))).
+-define(returnOption(Class), (128 == (Class band 128))).
 
 %%----------------------------------------------------------------------
 %%  The gtt_m3ua_cb public API
@@ -124,12 +128,8 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 		#state{fsm = Fsm, camel = CAMEL} = State) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1}),
 	Fscmg = fun({ok, UD}) ->
-				case m3ua:cast(Fsm, Stream, RC, DPC, OPC, NI, SI, SLS, UD) of
-					ok ->
-						{ok, once, State};
-					{error, Reason} ->
-						{error, Reason}
-				end;
+				m3ua:cast(Fsm, Stream, RC, DPC, OPC, NI, SI, SLS, UD),
+				{ok, once, State};
 			(none) ->
 				{ok, once, State}
 	end,
@@ -137,15 +137,38 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Stream, RC, O
 		#sccp_unitdata{called_party = #party_address{ri = true,
 				ssn = ?SSN_SCMG}} = UnitData2 ->
 			Fscmg(sccp_management(DPC, UnitData2));
-		#sccp_unitdata_service{called_party = #party_address{ri = true,
+		#sccp_extended_unitdata{called_party = #party_address{ri = true,
 				ssn = ?SSN_SCMG}} = UnitData2 ->
 			Fscmg(sccp_management(DPC, UnitData2));
-		#sccp_long_unitdata_service{called_party = #party_address{ri = true,
+		#sccp_long_unitdata{called_party = #party_address{ri = true,
 				ssn = ?SSN_SCMG}} = UnitData2 ->
 			Fscmg(sccp_management(DPC, UnitData2));
-		#sccp_unitdata_service{data = Data,
-				called_party = #party_address{ssn = ?SSN_CAMEL}} ->
-			gen_server:cast(CAMEL, {'N', 'UNITDATA', indication, Data}),
+		#sccp_unitdata{data = Data, class = Class,
+				called_party = #party_address{ssn = ?SSN_CAMEL} = CalledParty,
+				calling_party = CallingParty} ->
+			UnitData2 = #'N-UNITDATA'{userData = Data,
+					sequenceControl = ?sequenceControl(Class),
+					returnOption = ?returnOption(Class),
+					calledAddress = CalledParty, callingAddress = CallingParty},
+			gen_server:cast(CAMEL, {'N', 'UNITDATA', indication, UnitData2}),
+			{ok, once, State};
+		#sccp_extended_unitdata{data = Data, class = Class,
+				called_party = #party_address{ssn = ?SSN_CAMEL} = CalledParty,
+				calling_party = CallingParty} ->
+			UnitData2 = #'N-UNITDATA'{userData = Data,
+					sequenceControl = ?sequenceControl(Class),
+					returnOption = ?returnOption(Class),
+					calledAddress = CalledParty, callingAddress = CallingParty},
+			gen_server:cast(CAMEL, {'N', 'UNITDATA', indication, UnitData2}),
+			{ok, once, State};
+		#sccp_long_unitdata{long_data = Data, class = Class,
+				called_party = #party_address{ssn = ?SSN_CAMEL} = CalledParty,
+				calling_party = CallingParty} ->
+			UnitData2 = #'N-UNITDATA'{userData = Data,
+					sequenceControl = ?sequenceControl(Class),
+					returnOption = ?returnOption(Class),
+					calledAddress = CalledParty, callingAddress = CallingParty},
+			gen_server:cast(CAMEL, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		UnitData2 ->
 			error_logger:info_report(["Other SCCP Message",
@@ -176,7 +199,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Stream, RC, O
 %%%  Called when data has been sent for the MTP user.
 send(From, Ref, _Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _UnitData, State) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), From, Ref, _Stream, _RC, _OPC, _NI, _SI, _SLS, _UnitData}),
-	From ! {'MTP-TRANSFER', confirm, Ref},
+	% From ! {'MTP-TRANSFER', confirm, Ref},
 	{ok, once, State}.
 
 -spec pause(Stream, RC, DPCs, State) -> Result
