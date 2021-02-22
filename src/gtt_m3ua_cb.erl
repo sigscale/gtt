@@ -32,6 +32,9 @@
 		register/5, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, info/2, terminate/2]).
 
+-dialyzer(no_undefined_callbacks).
+-behaviour(m3ua_sgp_fsm).
+
 -include("gtt.hrl").
 -include_lib("sccp/include/sccp.hrl").
 -include_lib("tcap/include/sccp_primitive.hrl").
