@@ -152,7 +152,7 @@ transfer_in(Count) ->
 	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
 	{ok, _} = rpc:call(SgNode, gtt_app, install, [[SgNode]]),
 	{ok, _} = rpc:call(SgNode, gtt, add_ep, [ep1, {Address, 0, []},
-			undefined, server, sgp, gtt_m3ua_cb, []]),
+			undefined, server, sgp, gtt_m3ua_cb, undefined, []]),
 	ok = rpc:call(SgNode, application, start, [m3ua]),
 	ok = rpc:call(SgNode, application, start, [sccp]),
 	ok = rpc:call(SgNode, application, start, [gtt]),
