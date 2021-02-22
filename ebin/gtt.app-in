@@ -10,6 +10,7 @@
 				gtt_as_fsm,
 				gtt_m3ua_cb]},
 		{registered, [gtt]},
-		{applications, [kernel, stdlib, m3ua, sccp]},
+		{included_applications, [sccp]},
+		{applications, [kernel, stdlib, m3ua]},
 		{env, []},
 		{mod, {gtt_app, []}}]}.
