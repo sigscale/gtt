@@ -387,17 +387,17 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), terminate, _R
 -spec sccp_management(DPC, UnitData) -> Result
 	when
 		DPC :: 0..16383,
-		UnitData :: #sccp_unitdata{} | #sccp_unitdata_service{}
-				| #sccp_long_unitdata_service{},
+		UnitData :: #sccp_unitdata{} | #sccp_extended_unitdata{}
+				| #sccp_long_unitdata{},
 		Result :: {ok, UnitData} | none.
 %% @doc Handle SCCP Management Procedures
 sccp_management(DPC, #sccp_unitdata{called_party = CalledParty,
 		calling_party = CallingParty, data = Data} = _UnitData) ->
 	sccp_management1(DPC, CalledParty, CallingParty, Data);
-sccp_management(DPC, #sccp_unitdata_service{called_party = CalledParty,
+sccp_management(DPC, #sccp_extended_unitdata{called_party = CalledParty,
 		calling_party = CallingParty, data = Data}) ->
 	sccp_management1(DPC, CalledParty, CallingParty, Data);
-sccp_management(DPC, #sccp_long_unitdata_service{called_party = CalledParty,
+sccp_management(DPC, #sccp_long_unitdata{called_party = CalledParty,
 		calling_party = CallingParty, long_data = Data}) ->
 	sccp_management1(DPC, CalledParty, CallingParty, Data).
 %% @hidden
