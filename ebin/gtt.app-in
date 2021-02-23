@@ -10,7 +10,11 @@
 				gtt_as_fsm,
 				gtt_m3ua_cb]},
 		{registered, [gtt]},
-		{included_applications, [sccp]},
-		{applications, [kernel, stdlib, m3ua]},
+		{applications, [kernel, stdlib, mnesia, m3ua]},
+		{runtime_dependencies,
+				["sccp-1.1.0",
+				"m3ua-1.2.9",
+				"tcap-1.0.1",
+				"sigscale_mibs-1.0"]},
 		{env, []},
 		{mod, {gtt_app, []}}]}.
