@@ -47,6 +47,9 @@ init_per_suite(Config) ->
 	application:load(mnesia),
 	ok = application:set_env(mnesia, dir, PrivDir),
 	{ok, [m3ua_asp, m3ua_as]} = m3ua_app:install(),
+	ok = application:start(inets),
+	ok = application:start(snmp),
+	ok = application:start(sigscale_mibs),
 	ok = application:start(m3ua),
 	Config.
 
@@ -54,7 +57,11 @@ init_per_suite(Config) ->
 %% Cleanup after the whole suite.
 %%
 end_per_suite(_Config) ->
-	ok = application:stop(m3ua).
+	ok = application:stop(m3ua),
+	ok = application:stop(sigscale_mibs),
+	ok = application:stop(snmp),
+	ok = application:stop(inets),
+	ok = application:stop(mnesia).
 
 -spec init_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> Config :: [tuple()].
 %% Initiation before each test case.
@@ -153,6 +160,9 @@ transfer_in(Count) ->
 	{ok, _} = rpc:call(SgNode, gtt_app, install, [[SgNode]]),
 	{ok, _} = rpc:call(SgNode, gtt, add_ep, [ep1, {Address, 0, []},
 			undefined, server, sgp, gtt_m3ua_cb, undefined, []]),
+	ok = rpc:call(SgNode, application, start, [snmp]),
+	ok = rpc:call(SgNode, application, start, [sigscale_mibs]),
+	ok = rpc:call(SgNode, application, start, [inets]),
 	ok = rpc:call(SgNode, application, start, [m3ua]),
 	ok = rpc:call(SgNode, application, start, [sccp]),
 	ok = rpc:call(SgNode, application, start, [gtt]),
