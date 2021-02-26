@@ -21,8 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the public API
--export([add_ep/8, add_ep/9, delete_ep/1, get_ep/0, find_ep/1,
-		stat_ep/1, stat_ep/2]).
+-export([add_ep/8, add_ep/9, delete_ep/1, get_ep/0, find_ep/1]).
 -export([add_as/8, delete_as/1, get_as/0, find_as/1]).
 -export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
 		find_pc/3, find_pc/4]).
@@ -366,59 +365,6 @@ find_pc4(DPC, GTT) when is_integer(DPC) ->
 	MatchFunction = {MatchHead, MatchConditions, MatchBody},
 	MatchExpression = [MatchFunction],
 	mnesia:dirty_select(gtt_pc, MatchExpression).
-
--spec stat_ep(EpRef) -> Result
-	when
-		EpRef :: ep_ref(),
-		Result :: {ok, OptionValues} | {error, inet:posix()},
-		OptionValues :: [{inet:stat_option(), Count}],
-		Count :: non_neg_integer().
-%% @doc Get socket statistics for an SCTP endpoint.
-%% @see //m3ua/m3ua:getstat_endpoint/1
-stat_ep(EpRef) ->
-	case find_ep(EpRef) of
-		{ok, #gtt_ep{node = Node, ep = EP}}
-				when Node == undefined orelse Node == node() ->
-			m3ua:getstat(EP);
-		{ok, #gtt_ep{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat, [EP]) of
-				{ok, OptionValues} ->
-					{ok, OptionValues};
-				{error, Reason} ->
-					{error, Reason};
-				{badrpc, _} = Reason ->
-					{error, Reason}
-			end;
-		{error, Reason} ->
-			{error, Reason}
-	end.
-
--spec stat_ep(EpRef, Options) -> Result
-	when
-		EpRef :: ep_ref(),
-		Options :: [inet:stat_option()],
-		Result :: {ok, OptionValues} | {error, inet:posix()},
-		OptionValues :: [{inet:stat_option(), Count}],
-		Count :: non_neg_integer().
-%% @doc Get socket statistics for an SCTP endpoint.
-%% @see //m3ua/m3ua:getstat_endpoint/2
-stat_ep(EpRef, Options) when is_list(Options) ->
-	case find_ep(EpRef) of
-		{ok, #gtt_ep{node = Node, ep = EP}}
-				when Node == undefined orelse Node == node() ->
-			m3ua:getstat(EP, Options);
-		{ok, #gtt_ep{node = Node, ep = EP}} ->
-			case rpc:call(Node, m3ua, getstat, [EP, Options]) of
-				{ok, OptionValues} ->
-					{ok, OptionValues};
-				{error, Reason} ->
-					{error, Reason};
-				{badrpc, _} = Reason ->
-					{error, Reason}
-			end;
-		{error, Reason} ->
-			{error, Reason}
-	end.
 
 %%----------------------------------------------------------------------
 %%  The gtt private API
