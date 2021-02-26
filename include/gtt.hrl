@@ -29,8 +29,7 @@
 		remote :: undefined | {Address :: inet:ip_address(),
 				Port :: inet:port_number(), Options :: list()} | '_',
 		as = [] :: [AS :: gtt:as_ref()] | '_',
-		node :: node(),
-		ep :: pid() | undefined | '_'}). % to be removed
+		node :: node()}).
 
 -record(gtt_as,
 		{name :: gtt:as_ref(),
@@ -41,8 +40,7 @@
 				[SI :: byte()], [OPC :: 0..16777215]}],
 		mode :: override | loadshare | broadcast,
 		min_asp = 1 :: pos_integer(),
-		max_asp :: pos_integer(),
-		fsm = [] :: [{EP :: pid(), Assoc :: pos_integer()}]}). % to be removed 
+		max_asp :: pos_integer()}).
 
 -record(gtt_pc,
 		{dpc :: 0..16777215 | undefined,
