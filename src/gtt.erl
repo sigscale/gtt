@@ -439,15 +439,14 @@ candidates1(ASPs) ->
 %% 	```
 %% 	ASs = gtt:find_pc(NA, DPC, SI, OPC),
 %% 	ActiveAsps = gtt:candidates(ASs),
-%% 	case gtt:select_asp(ActiveAsps, OldWeights) of,
-%% 		{Fsm, _, ActiveWeights} ->
-%% 			Now = erlang:monotonic_time(),
-%% 			Ref = m3ua:cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
-%% 			NewQueue = Queue#{Ref => {Fsm, Now}},
-%% 			F = fun({QueueSize, Delay, Timestamp}) ->
-%% 					{QueueSize + 1, Delay, Now}
-%% 			end,
-%% 			NewWeights = maps:update_with(Fsm, F, ActiveWeights),
+%% 	{Fsm, _, ActiveWeights} = gtt:select_asp(ActiveAsps, OldWeights) of
+%% 	Now = erlang:monotonic_time(),
+%% 	Ref = m3ua:cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
+%% 	NewQueue = Queue#{Ref => {Fsm, Now}},
+%% 	F = fun({QueueSize, Delay, Timestamp}) ->
+%% 			{QueueSize + 1, Delay, Now}
+%% 	end,
+%% 	NewWeights = maps:update_with(Fsm, F, ActiveWeights),
 %% 	'''
 %%
 %% 	Later update the sending delay and queue size when an
