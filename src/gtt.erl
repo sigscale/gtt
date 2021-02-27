@@ -25,10 +25,14 @@
 -export([add_as/8, delete_as/1, get_as/0, find_as/1]).
 -export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
 		find_pc/3, find_pc/4]).
-
-%% export the private API
+-export([candidates/1, select_asp/2]).
 
 -include("gtt.hrl").
+
+-define(TRANSFERWAIT, 1000).
+-define(BLOCKTIME, 100).
+-define(QUEUESIZE, 2).
+-define(RECOVERYWAIT, 10000).
 
 %%----------------------------------------------------------------------
 %%  The gtt public API
@@ -40,7 +44,11 @@
 -type as_ref() :: term().
 %% Uniqiuely identifies an Application Server (AS).
 
--export_type([ep_ref/0, as_ref/0]).
+-type weights() :: #{ASP :: pid() := {QueueSize :: non_neg_integer(),
+		Delay :: non_neg_integer(), Timestamp :: integer()}}.
+%% Endpoints metrics used to select most idle candidate.
+
+-export_type([ep_ref/0, as_ref/0, weights/0]).
 
 -spec add_ep(Name, Local, Remote, SctpRole, M3uaRole,
 		Callback, CallbackOptions, ApplicationServers) -> Result
@@ -366,11 +374,162 @@ find_pc4(DPC, GTT) when is_integer(DPC) ->
 	MatchExpression = [MatchFunction],
 	mnesia:dirty_select(gtt_pc, MatchExpression).
 
-%%----------------------------------------------------------------------
-%%  The gtt private API
-%%----------------------------------------------------------------------
+-spec candidates(ASs) -> Result
+	when
+		ASs :: [RC] | [RK],
+		RC :: 0..4294967295,
+		RK :: m3ua:routing_key(),
+		Result :: [ASP],
+		ASP :: pid().
+%% @doc Find active ASPs/SGPs for Application Servers (AS).
+%%
+%% 	The `ASs' may be specified with a list of
+%% 	of routing contexts `[RC]' or a list of routing
+%% 	keys `[RK]'.
+%%
+candidates([RC | _] = ASs) when is_integer(RC) ->
+	F = fun F([H | T], Acc) ->
+				case mnesia:dirty_read(m3ua_as, H, read) of
+					[#m3ua_as{state = active, asp = ASPs}] ->
+						F(T, [ASPs | Acc]);
+					_ ->
+						F(T, Acc)
+				end;
+			F([], Acc) ->
+				lists:flatten(lists:reverse(Acc))
+	end,
+	candidates1(F(ASs));
+candidates([RK | _] = ASs) when is_tuple(RK) ->
+	MatchHead = match_head(),
+	F1 = fun({NA, Keys, Mode}) ->
+			{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
+	end,
+	MatchConditions = [list_to_tuple(['or' | lists:map(F1, ASs)])],
+	MatchBody = ['$2'],
+	MatchFunction = {MatchHead, MatchConditions, MatchBody},
+	MatchExpression = [MatchFunction],
+	candidates1(select(MatchExpression)).
+%% @hidden
+candidates1(ASPs) ->
+	[Fsm || #m3ua_as_asp{fsm = Fsm, state = active} <- ASPs].
+
+-spec select_asp(ActiveAsps, Weights) -> Result
+	when
+		ActiveAsps :: [ASP],
+		ASP :: pid(),
+		Weights :: weights(),
+		ActiveWeights :: weights(),
+		Result :: {ASP, Status, ActiveWeights},
+		Status :: nonblocking | blocking | congested.
+%% @doc Select destination ASP for congestion avoidance
+%%
+%% 	In order to loadshare as fairly as possible across the
+%% 	ASPs within an AS we may keep track of observed latency
+%% 	and number of in flight requests. This allows a weighted
+%% 	selection, avoiding those with queued messages or recently
+%% 	observed slow confirmation time to a request.
+%%
+%% 	`ActiveAsps' should include only ASPs in the `active' state
+%% 	(see {@link //gtt/gtt:candidates/1. candidates/1}).
+%%
+%% 	The caller is expected to maintain `weights()', updating
+%% 	on send and transfer confirmation as in the example below:
+%%
+%% 	```
+%% 	ASs = gtt:find_pc(NA, DPC, SI, OPC),
+%% 	ActiveAsps = gtt:candidates(ASs),
+%% 	case gtt:select_asp(ActiveAsps, OldWeights) of,
+%% 		{Fsm, _, ActiveWeights} ->
+%% 			Now = erlang:monotonic_time(),
+%% 			Ref = m3ua:cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
+%% 			NewQueue = Queue#{Ref => {Fsm, Now}},
+%% 			F = fun({QueueSize, Delay, Timestamp}) ->
+%% 					{QueueSize + 1, Delay, Now}
+%% 			end,
+%% 			NewWeights = maps:update_with(Fsm, F, ActiveWeights),
+%% 	'''
+%%
+%% 	Later update the sending delay and queue size when an
+%% 	``{'MTP-TRANSFER', confirm, Ref}'' primitive is received:
+%%
+%% 	```
+%% 	info({'MTP-TRANSFER', confirm, Ref},
+%% 			#state{queue = Queue, weights = Weights}) ->
+%% 		Now = erlang:monotonic_time(),
+%% 		{{Fsm, Start}, NewQueue} =  maps:take(Ref, Queue),
+%% 		Delay = Now - Start,
+%% 		F = fun({Queue, _, _}) ->
+%% 				{Queue - 1, Delay, Now}
+%% 		end,
+%% 		NewWeights = maps:update_with(Fsm, F, Weights),
+%% 	'''
+%%
+select_asp(ActiveAsps, Weights)
+		when is_list(ActiveAsps), is_map(Weights) ->
+	Now = erlang:monotonic_time(),
+	Factive = fun(Fsm, _) ->
+				lists:member(Fsm, ActiveAsps)
+	end,
+	Iter1 = maps:iterator(Weights),
+	ActiveWeights = maps:filter(Factive, Iter1),
+	Frecover = fun(_, {_, _, Ts}) when (Now - Ts) > ?RECOVERYWAIT ->
+				{0, 1, Now};
+			(_, Value) ->
+				Value
+	end,
+	Iter2 = maps:iterator(ActiveWeights),
+	RecoveredWeights = maps:map(Frecover, Iter2),
+	Fadd = fun F([H | T], Acc) ->
+				F(T, Acc#{H => {0, 1, Now}});
+			F([], Acc) ->
+				Acc
+	end,
+	AddedWeights = lists:foldl(Fadd,
+			ActiveAsps -- maps:keys(RecoveredWeights)),
+	Fblock = fun(Fsm, {Qs, D, _}, Acc)
+					when Qs < ?QUEUESIZE, D < ?BLOCKTIME ->
+				[Fsm | Acc];
+			(_, _, Acc) ->
+				Acc
+	end,
+	Iter3 = maps:iterator(AddedWeights),
+	case maps:fold(Fblock, [], Iter3) of
+		NonBlocking when length(NonBlocking) > 0 ->
+			Len = length(NonBlocking),
+			Fsm = lists:nth(rand:uniform(Len), NonBlocking),
+			{Fsm, nonblocking, AddedWeights};
+		[] ->
+			Fwait = fun(Fsm, {Qs, D, _}, Acc)
+							when Qs < (?QUEUESIZE * 2), D < ?TRANSFERWAIT ->
+						[Fsm | Acc];
+					(_, _, Acc) ->
+						Acc
+			end,
+			Iter4 = maps:iterator(AddedWeights),
+			case maps:fold(Fwait, [], Iter4) of
+				Responding when length(Responding) > 0 ->
+					Len = length(Responding),
+					Fsm = lists:nth(rand:uniform(Len), Responding),
+					{Fsm, blocking, AddedWeights};
+				[] ->
+					Fsms = maps:keys(AddedWeights),
+					Len = length(Fsms),
+					Fsm = lists:nth(rand:uniform(Len), Fsms),
+					{Fsm, congested, AddedWeights}
+			end
+	end.
 
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+
+-dialyzer([{nowarn_function, [match_head/0]}, no_contracts]).
+%% @hidden
+match_head() ->
+	#m3ua_as{rc = '$1', asp = '$2', state = active, _ = '_'}.
+
+-dialyzer([{nowarn_function, [select/1]}, no_return]).
+%% @hidden
+select(MatchExpression) ->
+	mnesia:dirty_select(m3ua_as, MatchExpression).
 
