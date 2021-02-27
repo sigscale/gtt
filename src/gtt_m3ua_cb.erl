@@ -202,7 +202,7 @@ erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), Stream, RC, O
 %%%  Called when data has been sent for the MTP user.
 send(From, Ref, _Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _UnitData, State) ->
 erlang:display({?MODULE, ?LINE, erlang:system_time(milli_seconds), From, Ref, _Stream, _RC, _OPC, _NI, _SI, _SLS, _UnitData}),
-	% From ! {'MTP-TRANSFER', confirm, Ref},
+	From ! {'MTP-TRANSFER', confirm, Ref},
 	{ok, once, State}.
 
 -spec pause(Stream, RC, DPCs, State) -> Result
