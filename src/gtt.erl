@@ -430,7 +430,8 @@ candidates1(ASPs) ->
 %% 	observed slow confirmation time to a request.
 %%
 %% 	`ActiveAsps' should include only ASPs in the `active' state
-%% 	(see {@link //gtt/gtt:candidates/1. candidates/1}).
+%% 	(see {@link //gtt/gtt:candidates/1. candidates/1}) and must
+%% 	not be empty.
 %%
 %% 	The caller is expected to maintain `weights()', updating
 %% 	on send and transfer confirmation as in the example below:
@@ -465,7 +466,8 @@ candidates1(ASPs) ->
 %% 	'''
 %%
 select_asp(ActiveAsps, Weights)
-		when is_list(ActiveAsps), is_map(Weights) ->
+		when is_list(ActiveAsps), length(ActiveAsps) > 0,
+		is_map(Weights) ->
 	Now = erlang:monotonic_time(),
 	Factive = fun(Fsm, _) ->
 				lists:member(Fsm, ActiveAsps)
