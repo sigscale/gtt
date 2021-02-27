@@ -154,7 +154,7 @@ get_ep() ->
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
-%% @doc Search for an SCTP endpoint specification by name.
+%% @doc Find an SCTP endpoint specification by name.
 find_ep(Name) ->
 	F = fun() -> mnesia:read(gtt_ep, Name, read) end,
 	case mnesia:transaction(F) of
@@ -249,7 +249,7 @@ get_as() ->
 		Result :: {ok, AS} | {error, Reason},
 		AS :: #gtt_as{},
 		Reason :: term().
-%% @doc Search for an SCTP endpoint specification.
+%% @doc Find an Application Server specification by name.
 find_as(AsName) ->
 	F = fun() -> mnesia:read(gtt_as, AsName, read) end,
 	case mnesia:transaction(F) of
