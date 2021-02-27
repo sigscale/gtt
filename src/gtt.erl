@@ -439,7 +439,7 @@ candidates1(ASPs) ->
 %% 	```
 %% 	ASs = gtt:find_pc(NA, DPC, SI, OPC),
 %% 	ActiveAsps = gtt:candidates(ASs),
-%% 	{Fsm, _, ActiveWeights} = gtt:select_asp(ActiveAsps, OldWeights) of
+%% 	{Fsm, _, ActiveWeights} = gtt:select_asp(ActiveAsps, OldWeights),
 %% 	Now = erlang:monotonic_time(),
 %% 	Ref = m3ua:cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
 %% 	NewQueue = Queue#{Ref => {Fsm, Now}},
