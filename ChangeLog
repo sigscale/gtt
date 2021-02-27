@@ -1,3 +1,40 @@
+2022-02-27  Vance Shipley <vances@sigscale.org>
+
+	* public api for finding asps for destination: candidates/1
+	* public api for congestion avoidance: select_asp/2
+	* remove deprecated endpoint pid fields from tables
+	* remove api functions to get sctp statistics from m3ua endpoints
+	* dependency on sccp v2
+	* start prerequisite applications in test suite
+	* only load sccp
+	* runtime dependencies in application specification
+	* move library applications to included application in app specification
+	* missing behaviour; suppress dialyzer warning
+	* update for add_ep api change
+	* correct unitdata types in scmg
+	* correct primitive construction for n-unitdata
+	* require tcap for header files
+	* asyncronously send scmg response
+	* correct opc/dpc in scmg subsystem test response
+	* use cse cb_opts in example
+	* use camel subsystem number to bind to tcap of cse
+	* document types
+	* describe tables and initialization in overview
+	* rename options argument to avoid conflict
+	* apply sigscale style to edoc
+	* relative httpd directories
+	* include callback options in add_ep
+	* refactor m3ua callback module for use with tcap
+	* correct type specification reference to m3ua
+	* relate log function to internal section
+	* correct api sap module description
+	* scrub repo to obfuscate customer point codes
+
+2018-09-16  Vance Shipley <vances@sigscale.org>
+
+	* test suite for mtp transfer
+	* refactor for asynchronous send with blocking
+
 2021-02-19  Vance Shipley <vances@sigscale.org>
 
 	* refactor for use with tcap
