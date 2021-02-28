@@ -443,7 +443,7 @@ candidates1(ASPs) ->
 %% 	Now = erlang:monotonic_time(),
 %% 	Ref = m3ua:cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, UnitData),
 %% 	NewQueue = Queue#{Ref => {Fsm, Now}},
-%% 	F = fun({QueueSize, Delay, Timestamp}) ->
+%% 	F = fun({QueueSize, Delay, _}) ->
 %% 			{QueueSize + 1, Delay, Now}
 %% 	end,
 %% 	NewWeights = maps:update_with(Fsm, F, ActiveWeights),
@@ -453,13 +453,13 @@ candidates1(ASPs) ->
 %% 	``{'MTP-TRANSFER', confirm, Ref}'' primitive is received:
 %%
 %% 	```
-%% 	info({'MTP-TRANSFER', confirm, Ref},
+%% 	handle_info({'MTP-TRANSFER', confirm, Ref},
 %% 			#state{queue = Queue, weights = Weights}) ->
 %% 		Now = erlang:monotonic_time(),
 %% 		{{Fsm, Start}, NewQueue} =  maps:take(Ref, Queue),
 %% 		Delay = Now - Start,
-%% 		F = fun({Queue, _, _}) ->
-%% 				{Queue - 1, Delay, Now}
+%% 		F = fun({QueueSize, _, _}) ->
+%% 				{QueueSize - 1, Delay, Now}
 %% 		end,
 %% 		NewWeights = maps:update_with(Fsm, F, Weights),
 %% 	'''
