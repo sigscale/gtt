@@ -14,7 +14,7 @@
 		{runtime_dependencies,
 				["sccp-2.0.0",
 				"m3ua-1.2.9",
-				"tcap-1.2.0",
+				"tcap-1.2.2",
 				"sigscale_mibs-1.0"]},
 		{env, []},
 		{mod, {gtt_app, []}}]}.
