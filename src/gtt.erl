@@ -389,7 +389,7 @@ find_pc4(DPC, GTT) when is_integer(DPC) ->
 %%
 candidates([RC | _] = ASs) when is_integer(RC) ->
 	F = fun F([H | T], Acc) ->
-				case mnesia:dirty_read(m3ua_as, H, read) of
+				case mnesia:dirty_read(m3ua_as, H) of
 					[#m3ua_as{state = active, asp = ASPs}] ->
 						F(T, [ASPs | Acc]);
 					_ ->
