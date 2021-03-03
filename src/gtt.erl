@@ -485,7 +485,7 @@ select_asp(ActiveAsps, Weights)
 			F([], Acc) ->
 				Acc
 	end,
-	AddedWeights = lists:foldl(Fadd,
+	AddedWeights = lists:foldl(Fadd, #{},
 			ActiveAsps -- maps:keys(RecoveredWeights)),
 	Fblock = fun(Fsm, {Qs, D, _}, Acc)
 					when Qs < ?QUEUESIZE, D < ?BLOCKTIME ->
