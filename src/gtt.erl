@@ -482,7 +482,7 @@ select_asp(ActiveAsps, Weights)
 	RecoveredWeights = maps:map(Frecover, Iter2),
 	AddedAsps = ActiveAsps -- maps:keys(RecoveredWeights),
 	Added = [{Asp, {0, 1, Now}} || Asp <- AddedAsps],
-	AddedWeights = maps:merge(RecoveredWeights, mmaps:from_list(Added)),
+	AddedWeights = maps:merge(RecoveredWeights, maps:from_list(Added)),
 	Fblock = fun(Fsm, {Qs, D, _}, Acc)
 					when Qs < ?QUEUESIZE, D < ?BLOCKTIME ->
 				[Fsm | Acc];
