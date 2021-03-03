@@ -398,7 +398,7 @@ candidates([RC | _] = ASs) when is_integer(RC) ->
 			F([], Acc) ->
 				lists:flatten(lists:reverse(Acc))
 	end,
-	candidates1(F(ASs));
+	candidates1(F(ASs, []));
 candidates([RK | _] = ASs) when is_tuple(RK) ->
 	MatchHead = match_head(),
 	F1 = fun({NA, Keys, Mode}) ->
