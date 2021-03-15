@@ -12,7 +12,8 @@ modhtml = gtt.html \
 
 doc_DATA = overview.edoc $(modhtml) \
 		modules-frame.html overview-summary.html \
-		index.html stylesheet.css sigscale-logo.png
+		index.html stylesheet.css edoc-info \
+		sigscale-logo.png
 
 overview.edoc: overview.edoc-in
 	sed -e 's!%VERSION%!$(VERSION)!' \
