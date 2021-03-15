@@ -389,7 +389,7 @@ find_pc4(DPC, GTT) when is_integer(DPC) ->
 %%
 candidates([RC | _] = ASs) when is_integer(RC) ->
 	F = fun F([H | T], Acc) ->
-				case mnesia:dirty_read(m3ua_as, H, read) of
+				case mnesia:dirty_read(m3ua_as, H) of
 					[#m3ua_as{state = active, asp = ASPs}] ->
 						F(T, [ASPs | Acc]);
 					_ ->
@@ -398,7 +398,7 @@ candidates([RC | _] = ASs) when is_integer(RC) ->
 			F([], Acc) ->
 				lists:flatten(lists:reverse(Acc))
 	end,
-	candidates1(F(ASs));
+	candidates1(F(ASs, []));
 candidates([RK | _] = ASs) when is_tuple(RK) ->
 	MatchHead = match_head(),
 	F1 = fun({NA, Keys, Mode}) ->
@@ -480,13 +480,9 @@ select_asp(ActiveAsps, Weights)
 	end,
 	Iter2 = maps:iterator(ActiveWeights),
 	RecoveredWeights = maps:map(Frecover, Iter2),
-	Fadd = fun F([H | T], Acc) ->
-				F(T, Acc#{H => {0, 1, Now}});
-			F([], Acc) ->
-				Acc
-	end,
-	AddedWeights = lists:foldl(Fadd,
-			ActiveAsps -- maps:keys(RecoveredWeights)),
+	AddedAsps = ActiveAsps -- maps:keys(RecoveredWeights),
+	Added = [{Asp, {0, 1, Now}} || Asp <- AddedAsps],
+	AddedWeights = maps:merge(RecoveredWeights, maps:from_list(Added)),
 	Fblock = fun(Fsm, {Qs, D, _}, Acc)
 					when Qs < ?QUEUESIZE, D < ?BLOCKTIME ->
 				[Fsm | Acc];

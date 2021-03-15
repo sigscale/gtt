@@ -133,7 +133,7 @@ slave() ->
 	slave:start_link(Host, Node, ErlFlags).
 
 callback(Ref) ->
-	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, Pid) ->
+	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, _Options, Pid) ->
 				Pid ! {Ref, self()},
 				{ok, once, []}
 	end,
@@ -159,7 +159,7 @@ transfer_in(Count) ->
 	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
 	{ok, _} = rpc:call(SgNode, gtt_app, install, [[SgNode]]),
 	{ok, _} = rpc:call(SgNode, gtt, add_ep, [ep1, {Address, 0, []},
-			undefined, server, sgp, gtt_m3ua_cb, undefined, []]),
+			undefined, server, sgp, gtt_m3ua_cb, #{camel => undefined}, []]),
 	ok = rpc:call(SgNode, application, start, [snmp]),
 	ok = rpc:call(SgNode, application, start, [sigscale_mibs]),
 	ok = rpc:call(SgNode, application, start, [inets]),
