@@ -1,10 +1,36 @@
-@copyright 2018 SigScale Global Inc.
+@copyright 2018-2021 SigScale Global Inc.
 @version %VERSION%
 @title %DESCRIPTION%
 @doc This application implements a Global Title Translation (GTT)
 	application for use with the Signaling System No. 7 (SS7) protocol suite.
 
 ==Introduction==
+The purpose of this application is to provide message distribution for
+users of the {@link //m3ua. m3ua} application. An M3UA ASP is a `pid()'
+encompassing an SCTP endpoint. An MTP3-User implemention is unconstrained.
+
+<img alt="messaging" src="messaging.png" /><br />
+<a href="messaging.png">Figure 1-1</a>
+
+===Northbound===
+The choice of {@link //m3ua/m3ua_asp_fsm. m3ua_asp_fsm} callback
+module used to start the ASPs will control how the ASPs send MTP3 messages
+to an MTP3-User. The `recv/9' callback function is called to handle MTP3
+messages received by an ASP.
+
+The {@link gtt_m3ua_cb} callback module implements a Signalling Connection
+Control Part (SCCP) layer as an MTP3-User. A Signaling Gateway Process
+(SGP) started with this callback module shall perform an SCCP Routing
+Control (SCRC) function as well as SCCP Management (SCMG). Received SCCP
+UnitData messages addressed to local SubSystem Numbers (SSN) are forwarded
+to the configured Network Service Access Point (NSAP).  For example SSN=146
+is used for CAMEL which is forwarded to the TCAP Transaction Sublayer (TSL).
+
+===Southbound===
+An MTP3-User sending MTP3 messages to the network may distribute them over
+the ASPs available in an AS using the {@link gtt:select_asp/2} function.
+This allows load sharing through a weighted selection mechanism which avoids
+ASPs with queued messages or slow response of recent messages.
 
 ==Installation==
 Before starting the application for the first time, {@link //mnesia/mnesia. mnesia}
