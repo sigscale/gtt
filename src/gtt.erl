@@ -55,7 +55,7 @@
 	when
 		Name :: ep_ref(),
 		Local :: {Address, Port, M3uaOptions},
-		Remote :: undefined | {Address, Port, M3uaOptions},
+		Remote :: undefined | {Address, Port, SctpOptions},
 		SctpRole :: client | server,
 		M3uaRole :: sgp | asp,
 		Callback :: atom() | #m3ua_fsm_cb{},
@@ -64,6 +64,7 @@
 		Port :: inet:port_number(),
 		Address :: inet:ip_address(),
 		M3uaOptions :: [m3ua:option()],
+		SctpOptions :: [gen_sctp:option()],
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
@@ -78,7 +79,7 @@ add_ep(Name, Local, Remote, SctpRole, M3uaRole,
 	when
 		Name :: ep_ref(),
 		Local :: {Address, Port, M3uaOptions},
-		Remote :: undefined | {Address, Port, M3uaOptions},
+		Remote :: undefined | {Address, Port, SctpOptions},
 		SctpRole :: client | server,
 		M3uaRole :: sgp | asp,
 		Callback :: atom() | #m3ua_fsm_cb{},
@@ -88,6 +89,7 @@ add_ep(Name, Local, Remote, SctpRole, M3uaRole,
 		Port :: inet:port_number(),
 		Address :: inet:ip_address(),
 		M3uaOptions :: [m3ua:option()],
+		SctpOptions :: [gen_sctp:option()],
 		Result :: {ok, EP} | {error, Reason},
 		EP :: #gtt_ep{},
 		Reason :: term().
