@@ -156,7 +156,11 @@ down({'M-ASP_UP', Node, _EP, _Assoc},
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 inactive({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
-		#statedata{role = as, rc = RC} = StateData) when Node == node() ->
+		#statedata{role = as, rc = RC} = StateData)
+		when Node == node(), is_integer(RC) ->
+	update_state(as_state(AsState), StateData);
+inactive({'M-NOTIFY', Node, _EP, _Assoc, undefined, AsState, _AspID},
+		#statedata{role = as} = StateData) when Node == node() ->
 	update_state(as_state(AsState), StateData);
 inactive({'M-ASP_DOWN', Node, EP, Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
@@ -220,8 +224,12 @@ inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 active({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
-		#statedata{role = as, rc = RC} = StateData) when Node == node() ->
+		#statedata{role = as, rc = RC} = StateData)
+		when Node == node(), is_integer(RC) ->
 	% @todo should m3ua_asp_fsm accept asp_active/2 in active state?
+	update_state(as_state(AsState), StateData);
+active({'M-NOTIFY', Node, _EP, _Assoc, undefined, AsState, _AspID},
+		#statedata{role = as} = StateData) when Node == node() ->
 	update_state(as_state(AsState), StateData);
 active({'M-ASP_DOWN', Node, EP, Assoc},
 		#statedata{role = as} = StateData) when Node == node() ->
@@ -287,7 +295,11 @@ active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 pending(timeout, #statedata{} = StateData) ->
 	{next_state, down, StateData};
 pending({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
-		#statedata{role = as, rc = RC} = StateData) when Node == node() ->
+		#statedata{role = as, rc = RC} = StateData)
+		when Node == node(), is_integer(RC) ->
+	update_state(as_state(AsState), StateData);
+pending({'M-NOTIFY', Node, _EP, _Assoc, undefined, AsState, _AspID},
+		#statedata{role = as} = StateData) when Node == node() ->
 	update_state(as_state(AsState), StateData);
 pending({'M-ASP_UP', Node, EP, Assoc}, #statedata{role = as,
 		name = Name, rc = undefined, na = NA, keys = Keys,
