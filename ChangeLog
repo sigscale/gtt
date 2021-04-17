@@ -1,3 +1,19 @@
+2021-04-17  Vance Shipley <vances@sigscale.org>
+
+	* rc optional in notify
+	* correct state name in edoc descriptions
+	* describe message distribution
+	* include edoc-info in installed doc
+	* upadte test suite for api changes
+	* missing argument for accumulator in foldl
+	* update required dependencies
+	* edoc corrections
+	* correct function descriptions
+	* simplify example, one possible return
+	* active asp list must not be empty
+	* require tcap version with send_primitive result
+	* send mtp-transfer confirmation primitive
+
 2021-02-27  Vance Shipley <vances@sigscale.org>
 
 	* public api for finding asps for destination: candidates/1
