@@ -95,7 +95,7 @@ init([Name] = _Args) ->
 		| {next_state, NextStateName :: atom(), NewStateData :: statedata(), hibernate}
 		| {stop, Reason :: normal | term(), NewStateData :: statedata()}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
-%%		gen_fsm:send_event/2} in the <b>request</b> state.
+%%		gen_fsm:send_event/2} in the <b>down</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 down({'M-ASP_DOWN', Node, EP, Assoc},
@@ -152,7 +152,7 @@ down({'M-ASP_UP', Node, _EP, _Assoc},
 		| {next_state, NextStateName :: atom(), NewStateData :: statedata(), hibernate}
 		| {stop, Reason :: normal | term(), NewStateData :: statedata()}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
-%%		gen_fsm:send_event/2} in the <b>request</b> state.
+%%		gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 inactive({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
@@ -216,7 +216,7 @@ inactive({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 		| {next_state, NextStateName :: atom(), NewStateData :: statedata(), hibernate}
 		| {stop, Reason :: normal | term(), NewStateData :: statedata()}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
-%%		gen_fsm:send_event/2} in the <b>request</b> state.
+%%		gen_fsm:send_event/2} in the <b>active</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 active({'M-NOTIFY', Node, _EP, _Assoc, RC, AsState, _AspID},
@@ -281,7 +281,7 @@ active({'M-ASP_ACTIVE', Node, _EP, _Assoc}, StateData) when Node == node() ->
 		| {next_state, NextStateName :: atom(), NewStateData :: statedata(), hibernate}
 		| {stop, Reason :: normal | term(), NewStateData :: statedata()}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
-%%		gen_fsm:send_event/2} in the <b>request</b> state.
+%%		gen_fsm:send_event/2} in the <b>pending</b> state.
 %% @@see //stdlib/gen_fsm:StateName/2
 %% @private
 pending(timeout, #statedata{} = StateData) ->
