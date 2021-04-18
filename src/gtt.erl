@@ -525,7 +525,7 @@ select_asp(ActiveAsps, Weights)
 -dialyzer([{nowarn_function, [match_head/0]}, no_contracts]).
 %% @hidden
 match_head() ->
-	#m3ua_as{rc = '$1', asp = '$2', state = active, _ = '_'}.
+	#m3ua_as{rk = '$1', asp = '$2', state = active, _ = '_'}.
 
 -dialyzer([{nowarn_function, [select/1]}, no_return]).
 %% @hidden
