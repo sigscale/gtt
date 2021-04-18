@@ -1,3 +1,9 @@
+2021-04-18  Vance Shipley <vances@sigscale.org>
+
+	* suppress unused variable warnings
+	* correct get candidates by routing keys
+	* correct type spec for remote options
+
 2021-04-17  Vance Shipley <vances@sigscale.org>
 
 	* rc optional in notify
