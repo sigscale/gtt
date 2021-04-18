@@ -339,7 +339,7 @@ asp_inactive(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 		State :: state(),
 		Result :: {ok, State}.
 %% @doc Called when SGP reports Application Server (AS) state changes.
-notify(RC, Status, AspID, #state{module = m3ua_sgp_fsm} = State) ->
+notify(_RC, _Status, _AspID, #state{module = m3ua_sgp_fsm} = State) ->
 	{ok, State};
 notify(RC, Status, AspID, #state{module = m3ua_asp_fsm,
 		ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
@@ -368,7 +368,7 @@ info({'MTP-TRANSFER', confirm, _Ref} = _Info, State) ->
 		State :: state(),
 		Result :: any().
 %% @doc Called when ASP terminates.
-terminate(_Reason, State) ->
+terminate(_Reason, _State) ->
 	ok.
 
 -spec sccp_management(DPC, UnitData) -> Result
