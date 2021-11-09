@@ -46,7 +46,7 @@
 		ep_name :: term(),
 		assoc :: pos_integer(),
 		rk = [] :: [m3ua:routing_key()],
-		camel :: pid()}).
+		ssn :: #{SSN :: 0..255 => USAP :: pid()}}).
 -type state() :: #state{}.
 
 -define(SSN_SCMG, 1).
@@ -56,7 +56,6 @@
 -define(SCMG_SOR, 4).
 -define(SCMG_SOG, 5).
 -define(SCMG_SSC, 6).
--define(SSN_CAMEL, 146).
 
 -define(sequenceControl(Class), (1 == (Class band 1))).
 -define(returnOption(Class), (128 == (Class band 128))).
@@ -69,6 +68,8 @@
 %%  The m3ua_[asp|sgp]_fsm callabcks
 %%----------------------------------------------------------------------
 
+-type options() :: [{ssn, #{SSN :: 0..255 => USAP :: pid()}}].
+
 -spec init(Module, Fsm, EP, EpName, Assoc, Options) -> Result
 	when
 		Module :: atom(),
@@ -76,7 +77,7 @@
 		EP :: pid(),
 		EpName :: term(),
 		Assoc :: pos_integer(),
-		Options :: map(),
+		Options :: options(),
 		Result :: {ok, Active, State} | {ok, Active, State, ASs} | {error, Reason},
 		Active :: true | false | once | pos_integer(),
 		State :: state(),
@@ -92,14 +93,16 @@
 		Reason :: term().
 %% @doc Initialize ASP/SGP callback handler
 %%%  Called when ASP is started.
-init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc, #{camel := CAMEL} = _Options) ->
+init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc, Options) ->
+	SSNs = proplists:get_value(ssn, Options, #{}),
 	State = #state{module = m3ua_sgp_fsm, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc, camel = CAMEL},
+			ep = EP, ep_name = EpName, assoc = Assoc, ssn = SSNs},
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	init1(ASs, State, []);
-init(Module, Fsm, EP, EpName, Assoc, #{camel := CAMEL} = _Options) ->
+init(Module, Fsm, EP, EpName, Assoc, Options) ->
+	SSNs = proplists:get_value(ssn, Options, #{}),
 	{ok, once, #state{module = Module, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc, camel = CAMEL}}.
+			ep = EP, ep_name = EpName, assoc = Assoc, ssn = SSNs}}.
 %% @hidden
 init1([AS | T], State, Acc) ->
 	[#gtt_as{rc = RC, na = NA, keys = Keys, name = Name,
@@ -126,7 +129,7 @@ init1([], State, Acc) ->
 %% @doc MTP-TRANSFER indication
 %%%  Called when data has arrived for the MTP user.
 recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
-		#state{fsm = Fsm, camel = CAMEL} = State) ->
+		#state{fsm = Fsm, ssn = SSNs} = State) ->
 	Fscmg = fun({ok, UD}) ->
 				m3ua:cast(Fsm, Stream, RC, DPC, OPC, NI, SI, SLS, UD),
 				{ok, once, State};
@@ -144,31 +147,31 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 				ssn = ?SSN_SCMG}} = UnitData2 ->
 			Fscmg(sccp_management(DPC, UnitData2));
 		#sccp_unitdata{data = Data, class = Class,
-				called_party = #party_address{ssn = ?SSN_CAMEL} = CalledParty,
-				calling_party = CallingParty} ->
+				called_party = #party_address{ssn = SSN} = CalledParty,
+				calling_party = CallingParty} when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
 					calledAddress = CalledParty, callingAddress = CallingParty},
-			gen_server:cast(CAMEL, {'N', 'UNITDATA', indication, UnitData2}),
+			gen_server:cast(map_get(SSN, SSNs), {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_extended_unitdata{data = Data, class = Class,
-				called_party = #party_address{ssn = ?SSN_CAMEL} = CalledParty,
-				calling_party = CallingParty} ->
+				called_party = #party_address{ssn = SSN} = CalledParty,
+				calling_party = CallingParty} when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
 					calledAddress = CalledParty, callingAddress = CallingParty},
-			gen_server:cast(CAMEL, {'N', 'UNITDATA', indication, UnitData2}),
+			gen_server:cast(map_get(SSN, SSNs), {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_long_unitdata{long_data = Data, class = Class,
-				called_party = #party_address{ssn = ?SSN_CAMEL} = CalledParty,
-				calling_party = CallingParty} ->
+				called_party = #party_address{ssn = SSN} = CalledParty,
+				calling_party = CallingParty} when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
 					calledAddress = CalledParty, callingAddress = CallingParty},
-			gen_server:cast(CAMEL, {'N', 'UNITDATA', indication, UnitData2}),
+			gen_server:cast(map_get(SSN, SSNs), {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		UnitData2 ->
 			error_logger:info_report(["Other SCCP Message",
