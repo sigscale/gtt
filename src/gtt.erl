@@ -413,7 +413,7 @@ candidates([RK | _] = ASs) when is_tuple(RK) ->
 	candidates1(select(MatchExpression)).
 %% @hidden
 candidates1(ASPs) ->
-	[Fsm || #m3ua_as_asp{fsm = Fsm, state = active} <- ASPs].
+	[Fsm || #m3ua_as_asp{fsm = Fsm, state = active} <- lists:flatten(ASPs)].
 
 -spec select_asp(ActiveAsps, Weights) -> Result
 	when
