@@ -29,6 +29,9 @@
 -include_lib("m3ua/include/m3ua.hrl").
 -include_lib("common_test/include/ct.hrl").
 
+-define(SSN_CAP,   146).
+-define(SSN_INAP,  241).
+
 %%---------------------------------------------------------------------
 %%  Test server callback functions
 %%---------------------------------------------------------------------
@@ -159,7 +162,8 @@ transfer_in(Count) ->
 	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
 	{ok, _} = rpc:call(SgNode, gtt_app, install, [[SgNode]]),
 	{ok, _} = rpc:call(SgNode, gtt, add_ep, [ep1, {Address, 0, []},
-			undefined, server, sgp, gtt_m3ua_cb, #{camel => undefined}, []]),
+			undefined, server, sgp, gtt_m3ua_cb,
+			[{ssn, #{?SSN_CAP => undefined}}], []]),
 	ok = rpc:call(SgNode, application, start, [snmp]),
 	ok = rpc:call(SgNode, application, start, [sigscale_mibs]),
 	ok = rpc:call(SgNode, application, start, [inets]),
