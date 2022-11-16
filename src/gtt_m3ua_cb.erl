@@ -332,9 +332,10 @@ asp_inactive(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 	lists:foreach(F, ASs),
 	{ok, State}.
 
--spec notify(RC, Status, AspID, State) -> Result
+-spec notify(RCs, Status, AspID, State) -> Result
 	when
-		RC :: 0..4294967295 | undefined,
+		RCs :: [RC] | undefined,
+		RC :: 0..4294967295,
 		Status :: as_inactive | as_active | as_pending
 				| insufficient_asp_active | alternate_asp_active
 				| asp_failure,
@@ -342,13 +343,13 @@ asp_inactive(#state{ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 		State :: state(),
 		Result :: {ok, State}.
 %% @doc Called when SGP reports Application Server (AS) state changes.
-notify(_RC, _Status, _AspID, #state{module = m3ua_sgp_fsm} = State) ->
+notify(_RCs, _Status, _AspID, #state{module = m3ua_sgp_fsm} = State) ->
 	{ok, State};
-notify(RC, Status, AspID, #state{module = m3ua_asp_fsm,
+notify(RCs, Status, AspID, #state{module = m3ua_asp_fsm,
 		ep_name = EpName, ep = EP, assoc = Assoc} = State) ->
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	F = fun(AS) ->
-				catch gen_fsm:send_event(AS, {'M-NOTIFY', node(), EP, Assoc, RC, Status, AspID})
+				catch gen_fsm:send_event(AS, {'M-NOTIFY', node(), EP, Assoc, RCs, Status, AspID})
 	end,
 	lists:foreach(F, ASs),
 	{ok, State}.
