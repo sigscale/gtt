@@ -164,7 +164,7 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 					calledAddress = CalledParty, callingAddress = CallingParty},
 			gen_server:cast(map_get(SSN, SSNs), {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
-		#sccp_long_unitdata{long_data = Data, class = Class,
+		#sccp_long_unitdata{data = Data, class = Class,
 				called_party = #party_address{ssn = SSN} = CalledParty,
 				calling_party = CallingParty} when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
@@ -389,7 +389,7 @@ sccp_management(DPC, #sccp_extended_unitdata{called_party = CalledParty,
 		calling_party = CallingParty, data = Data}) ->
 	sccp_management1(DPC, CalledParty, CallingParty, Data);
 sccp_management(DPC, #sccp_long_unitdata{called_party = CalledParty,
-		calling_party = CallingParty, long_data = Data}) ->
+		calling_party = CallingParty, data = Data}) ->
 	sccp_management1(DPC, CalledParty, CallingParty, Data).
 %% @hidden
 sccp_management1(_DPC, CalledParty, CallingParty,
