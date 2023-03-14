@@ -1,10 +1,14 @@
+2023-03-14  Vance Shipley <vances@sigscale.org>
+
+	* handle reentrant install
+
 2023-03-08  Vance Shipley <vances@sigscale.org>
 
-	*port change to ludt in sccp-2.1.0
-	*correct type spec for routing contexts in notify/4
-	*include debug information in beam
-	*flatten list of match selected asps
-	*refactored m3ua callback options for ssn to usap mapping (in-64)
+	* port change to ludt in sccp-2.1.0
+	* correct type spec for routing contexts in notify/4
+	* include debug information in beam
+	* flatten list of match selected asps
+	* refactored m3ua callback options for ssn to usap mapping (in-64)
 
 2021-04-18  Vance Shipley <vances@sigscale.org>
 
