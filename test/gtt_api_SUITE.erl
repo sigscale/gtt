@@ -211,7 +211,7 @@ list_table(_Config) ->
 			F({Cont, L}, Acc) ->
 				F(gtt_title:list(Cont, Table), [L | Acc])
 	end,
-	N = length(F(gtt_title:list(start, Table), [])).
+	F(gtt_title:list(start, Table), []).
 
 clear_table() ->
 	[{userdata, [{doc, "Clear all entries in a global title table."}]}].
@@ -220,7 +220,7 @@ clear_table(_Config) ->
 	Table = ?FUNCTION_NAME,
 	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	fill(Table),
-	ok = gtt_title:clear_table(Table).
+	ok = gtt_title:clear(Table).
 
 delete_table() ->
 	[{userdata, [{doc, "Delete a global title table."}]}].
@@ -229,7 +229,7 @@ delete_table(_Config) ->
 	Table = ?FUNCTION_NAME,
 	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	fill(Table),
-	ok = gtt_title:delete_table(Table).
+	ok = gtt_title:delete(Table).
 
 transfer_in_1() ->
 	[{userdata, [{doc, "Transfer MTP3 payload to SG (once)."}]}].

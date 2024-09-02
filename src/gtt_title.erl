@@ -16,7 +16,7 @@
 %% export API
 -export([new/2, insert/2, insert/3, delete/2,
 		lookup_first/2, lookup_last/2, list/0, list/2,
-		backup/2, restore/2, clear_table/1, delete/1]).
+		backup/2, restore/2, clear/1, delete/1, delete/2]).
 
 -include("gtt.hrl").
 
@@ -249,14 +249,14 @@ list({[#gtt_title{} | _] = Gtts, Cont}) ->
 list('$end_of_table') ->
 	{eof, []}.
 
--spec clear_table(Table) -> Result
+-spec clear(Table) -> Result
 	when
 		Table :: atom(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Clear a global title table.
 %%
-clear_table(Table) when is_atom(Table) ->
+clear(Table) when is_atom(Table) ->
 	case mnesia:clear_table(Table) of
 		{atomic, ok} ->
 			ok;
