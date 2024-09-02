@@ -268,6 +268,7 @@ install2(Nodes) ->
 %% @hidden
 install3(Nodes, Tables) ->
 	case mnesia:create_table(gtt_ep, [{disc_copies, Nodes},
+			{user_properties, [{gtt, true}]},
 			{attributes, record_info(fields, gtt_ep)}]) of
 		{atomic, ok} ->
 			error_logger:info_msg("Created new endpoint table.~n"),
@@ -287,6 +288,7 @@ install3(Nodes, Tables) ->
 %% @hidden
 install4(Nodes, Tables) ->
 	case mnesia:create_table(gtt_as, [{disc_copies, Nodes},
+			{user_properties, [{gtt, true}]},
 			{attributes, record_info(fields, gtt_as)}]) of
 		{atomic, ok} ->
 			error_logger:info_msg("Created new application server table.~n"),
@@ -306,6 +308,7 @@ install4(Nodes, Tables) ->
 %% @hidden
 install5(Nodes, Tables) ->
 	case mnesia:create_table(gtt_pc, [{disc_copies, Nodes},
+			{user_properties, [{gtt, true}]},
 			{attributes, record_info(fields, gtt_pc)},
 			{type, bag}]) of
 		{atomic, ok} ->

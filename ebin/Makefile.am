@@ -13,7 +13,8 @@ beam_DATA = gtt.beam \
 		gtt_server.beam \
 		gtt_as_fsm_sup.beam \
 		gtt_as_fsm.beam \
-		gtt_m3ua_cb.beam
+		gtt_m3ua_cb.beam \
+		gtt_title.beam
 
 %.beam:$(top_srcdir)/src/%.erl
 	$(ERLC) $(ERLCFLAGS) -I $(top_srcdir)/include $<

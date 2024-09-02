@@ -24,7 +24,20 @@
 -export([init_per_suite/1, end_per_suite/1]).
 -export([init_per_testcase/2, end_per_testcase/2]).
 
--compile(export_all).
+%% export test cases
+-export([new_gtt/0, new_gtt/1, 
+		insert_gtt/0, insert_gtt/1, 
+		lookup_first/0, lookup_first/1, 
+		lookup_last/0, lookup_last/1, 
+		delete_gtt/0, delete_gtt/1,
+		list_tables/0, list_tables/1,
+		list_table/0, list_table/1,
+		clear_table/0, clear_table/1,
+		delete_table/0, delete_table/1,
+		transfer_in_1/0, transfer_in_1/1,
+		transfer_in_10/0, transfer_in_10/1,
+		transfer_in_100/0, transfer_in_100/1,
+		transfer_in_1000/0, transfer_in_1000/1]).
 
 -include_lib("m3ua/include/m3ua.hrl").
 -include_lib("common_test/include/ct.hrl").
@@ -93,11 +106,130 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[transfer_in_1, transfer_in_10, transfer_in_100, transfer_in_1000].
+	[new_gtt, insert_gtt, lookup_first, lookup_last, delete_gtt,
+			list_tables, list_table, clear_table, delete_table,
+			transfer_in_1, transfer_in_10, transfer_in_100,
+			transfer_in_1000].
 
 %%---------------------------------------------------------------------
 %%  Test cases
 %%---------------------------------------------------------------------
+
+new_gtt() ->
+	[{userdata, [{doc, "Create a new global title table."}]}].
+
+
+new_gtt(_Config) ->
+	Table = ?FUNCTION_NAME,
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	mnesia:table_info(Table, attributes).
+
+insert_gtt() ->
+	[{userdata, [{doc, "Add an AS to a global title table."}]}].
+
+insert_gtt(_Config) ->
+	Table = ?FUNCTION_NAME,
+	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	Address = address(),
+	NA = rand:uniform(4294967296) - 1,
+	DPC = rand:uniform(16777216) - 1,
+	Keys = [{DPC, [], []}],
+	TMF = loadshare,
+	AS = {NA, Keys, TMF},
+	true = gtt_title:insert(Table, Address, AS).
+
+lookup_first() ->
+	[{userdata, [{doc, "Find the first matching address."}]}].
+
+lookup_first(_Config) ->
+	Table = ?FUNCTION_NAME,
+	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	Address = address(),
+	NA = rand:uniform(4294967296) - 1,
+	DPC = rand:uniform(16777216) - 1,
+	Keys = [{DPC, [], []}],
+	TMF = loadshare,
+	AS = {NA, Keys, TMF},
+	fill(Table),
+	gtt_title:insert(Table, Address, AS),
+	AS = gtt_title:lookup_first(Table, Address).
+
+lookup_last() ->
+	[{userdata, [{doc, "Find the longest matching prefix."}]}].
+
+lookup_last(_Config) ->
+	Table = ?FUNCTION_NAME,
+	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	Address = address(20),
+	NA = rand:uniform(4294967296) - 1,
+	DPC = rand:uniform(16777216) - 1,
+	Keys = [{DPC, [], []}],
+	TMF = loadshare,
+	AS = {NA, Keys, TMF},
+	fill(Table),
+	gtt_title:insert(Table, Address, AS),
+	AS = gtt_title:lookup_first(Table, Address).
+
+delete_gtt() ->
+	[{userdata, [{doc, "Delete one entry from the table."}]}].
+
+delete_gtt(_Config) ->
+	Table = ?FUNCTION_NAME,
+	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	Address = address(),
+	NA = rand:uniform(4294967296) - 1,
+	DPC = rand:uniform(16777216) - 1,
+	Keys = [{DPC, [], []}],
+	TMF = loadshare,
+	AS = {NA, Keys, TMF},
+	fill(Table),
+	gtt_title:insert(Table, Address, AS),
+	true = gtt_title:delete(Table, Address).
+
+list_tables() ->
+	[{userdata, [{doc, "List all global title tables."}]}].
+
+list_tables(_Config) ->
+	gtt_title:new(one, [{disc_copies, [node() | nodes()]}]),
+	gtt_title:new(two, [{disc_copies, [node() | nodes()]}]),
+	gtt_title:new(three, [{disc_copies, [node() | nodes()]}]),
+	Tables = gtt_title:list(),
+	true = lists:member(one, Tables),
+	true = lists:member(two, Tables),
+	true = lists:member(three, Tables).
+
+list_table() ->
+	[{userdata, [{doc, "List all entries in a global title table."}]}].
+
+list_table(_Config) ->
+	Table = ?FUNCTION_NAME,
+	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	N = rand:uniform(500) + 100,
+	fill(Table, N),
+	F = fun F({eof, L}, Acc) ->
+				lists:flatten([L | Acc]);
+			F({Cont, L}, Acc) ->
+				F(gtt_title:list(Cont, Table), [L | Acc])
+	end,
+	N = length(F(gtt_title:list(start, Table), [])).
+
+clear_table() ->
+	[{userdata, [{doc, "Clear all entries in a global title table."}]}].
+
+clear_table(_Config) ->
+	Table = ?FUNCTION_NAME,
+	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	fill(Table),
+	ok = gtt_title:clear_table(Table).
+
+delete_table() ->
+	[{userdata, [{doc, "Delete a global title table."}]}].
+
+delete_table(_Config) ->
+	Table = ?FUNCTION_NAME,
+	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	fill(Table),
+	ok = gtt_title:delete_table(Table).
 
 transfer_in_1() ->
 	[{userdata, [{doc, "Transfer MTP3 payload to SG (once)."}]}].
@@ -127,6 +259,30 @@ transfer_in_1000(_Config) ->
 %%  Internal functions
 %%---------------------------------------------------------------------
 
+address() ->
+	address(rand:uniform(10)).
+address(N) ->
+	address(N, []).
+address(0, Acc) ->
+	Acc;
+address(N, Acc) ->
+	Digit = rand:uniform(10) - 1 + $0,
+	address(N - 1, [Digit, Acc]).
+
+fill(Table) ->
+	fill(Table, 50).
+fill(_Table, 0) ->
+	ok;
+fill(Table, N) ->
+	Address = address(),
+	NA = rand:uniform(4294967296) - 1,
+	DPC = rand:uniform(16777216) - 1,
+	Keys = [{DPC, [], []}],
+	TMF = loadshare,
+	AS = {NA, Keys, TMF},
+	gtt_title:insert(Table, Address, AS),
+	fill(Table, N - 1).
+	
 slave() ->
 	Path1 = filename:dirname(code:which(m3ua)),
 	Path2 = filename:dirname(code:which(gtt)),
