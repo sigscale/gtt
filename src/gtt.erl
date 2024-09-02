@@ -339,7 +339,7 @@ find_pc(DPC, SI, OPC) ->
 -spec find_pc(NA, DPC, SI, OPC) -> Result
 	when
 		NA :: pos_integer() | undefined,
-		DPC :: 0..16777215,
+		DPC :: 0..16777215 | undefined,
 		SI :: byte() | undefined,
 		OPC :: 0..16777215 | undefined,
 		Result :: [m3ua:routing_key()].
