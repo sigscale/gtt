@@ -46,8 +46,15 @@
 		ep_name :: term(),
 		assoc :: pos_integer(),
 		rk = [] :: [m3ua:routing_key()],
-		ssn :: #{SSN :: 0..255 => USAP :: pid()}}).
+		ssn = #{} :: #{SSN :: 0..255 => USAP :: pid()},
+		table #{} :: #{TT :: 0..255 => Table :: atom()}}).
 -type state() :: #state{}.
+
+-export_types([options/0]).
+
+-type options() :: [option()].
+-type option() :: {ssn, #{SSN :: 0..255 => USAP :: pid()}}
+			| {table, #{TT :: 0..255 => Table :: atom()}}.
 
 -define(SSN_SCMG, 1).
 -define(SCMG_SSA, 1).
@@ -67,8 +74,6 @@
 %%----------------------------------------------------------------------
 %%  The m3ua_[asp|sgp]_fsm callabcks
 %%----------------------------------------------------------------------
-
--type options() :: [{ssn, #{SSN :: 0..255 => USAP :: pid()}}].
 
 -spec init(Module, Fsm, EP, EpName, Assoc, Options) -> Result
 	when
@@ -95,14 +100,19 @@
 %%%  Called when ASP is started.
 init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc, Options) ->
 	SSNs = proplists:get_value(ssn, Options, #{}),
+	Tables = proplists:get_value(table, Options, #{}),
 	State = #state{module = m3ua_sgp_fsm, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc, ssn = SSNs},
+			ep = EP, ep_name = EpName, assoc = Assoc,
+			ssn = SSNs, tables = Tables},
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	init1(ASs, State, []);
 init(Module, Fsm, EP, EpName, Assoc, Options) ->
 	SSNs = proplists:get_value(ssn, Options, #{}),
-	{ok, once, #state{module = Module, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc, ssn = SSNs}}.
+	Tables = proplists:get_value(table, Options, #{}),
+	State = #state{module = Module, fsm = Fsm,
+			ep = EP, ep_name = EpName, assoc = Assoc,
+			ssn = SSNs, tables = Tables},
+	{ok, once, State}.
 %% @hidden
 init1([AS | T], State, Acc) ->
 	[#gtt_as{rc = RC, na = NA, keys = Keys, name = Name,
@@ -147,34 +157,76 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 				ssn = ?SSN_SCMG}} = UnitData2 ->
 			Fscmg(sccp_management(DPC, UnitData2));
 		#sccp_unitdata{data = Data, class = Class,
-				called_party = #party_address{ssn = SSN} = CalledParty,
-				calling_party = CallingParty} when is_map_key(SSN, SSNs) ->
+				called_party = #party_address{ri = true, ssn = SSN} = CalledParty,
+				calling_party = CallingParty}
+				when is_map_key(SSN, SSNs) ->
+			UnitData2 = #'N-UNITDATA'{userData = Data,
+					sequenceControl = ?sequenceControl(Class),
+					returnOption = ?returnOption(Class),
+					callingAddress = CallingParty,
+					calledAddress = CalledParty},
+			USAP = map_get(SSN, SSNs),
+			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
+			{ok, once, State};
+		#sccp_unitdata{data = Data, class = Class,
+				called_party = #party_address{ri = false, ssn = SSN} = CalledParty,
+				calling_party = CallingParty}
+				when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
 					calledAddress = CalledParty#party_address{pc = DPC},
 					callingAddress = CallingParty#party_address{pc = OPC}},
-			gen_server:cast(map_get(SSN, SSNs), {'N', 'UNITDATA', indication, UnitData2}),
+			USAP = map_get(SSN, SSNs),
+			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_extended_unitdata{data = Data, class = Class,
-				called_party = #party_address{ssn = SSN} = CalledParty,
-				calling_party = CallingParty} when is_map_key(SSN, SSNs) ->
+				called_party = #party_address{ri = true, ssn = SSN} = CalledParty,
+				calling_party = CallingParty}
+				when is_map_key(SSN, SSNs) ->
+			UnitData2 = #'N-UNITDATA'{userData = Data,
+					sequenceControl = ?sequenceControl(Class),
+					returnOption = ?returnOption(Class),
+					callingAddress = CallingParty,
+					calledAddress = CalledParty},
+			USAP = map_get(SSN, SSNs),
+			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
+			{ok, once, State};
+		#sccp_extended_unitdata{data = Data, class = Class,
+				called_party = #party_address{ri = false, ssn = SSN} = CalledParty,
+				calling_party = CallingParty}
+				when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
 					calledAddress = CalledParty#party_address{pc = DPC},
 					callingAddress = CallingParty#party_address{pc = OPC}},
-			gen_server:cast(map_get(SSN, SSNs), {'N', 'UNITDATA', indication, UnitData2}),
+			USAP = map_get(SSN, SSNs),
+			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_long_unitdata{data = Data, class = Class,
-				called_party = #party_address{ssn = SSN} = CalledParty,
-				calling_party = CallingParty} when is_map_key(SSN, SSNs) ->
+				called_party = #party_address{ri = true, ssn = SSN} = CalledParty,
+				calling_party = CallingParty}
+				when is_map_key(SSN, SSNs) ->
+			UnitData2 = #'N-UNITDATA'{userData = Data,
+					sequenceControl = ?sequenceControl(Class),
+					returnOption = ?returnOption(Class),
+					callingAddress = CallingParty,
+					calledAddress = CalledParty},
+			USAP = map_get(SSN, SSNs),
+			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
+			{ok, once, State};
+		#sccp_long_unitdata{data = Data, class = Class,
+				called_party = #party_address{ri = false, ssn = SSN} = CalledParty,
+				calling_party = CallingParty}
+				when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
 					calledAddress = CalledParty#party_address{pc = DPC},
 					callingAddress = CallingParty#party_address{pc = OPC}},
-			gen_server:cast(map_get(SSN, SSNs), {'N', 'UNITDATA', indication, UnitData2}),
+			USAP = map_get(SSN, SSNs),
+			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		UnitData2 ->
 			error_logger:info_report(["Other SCCP Message",
