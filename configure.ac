@@ -5,8 +5,8 @@
 ##
 ## Boilerplate:  standard boilerplate code
 ##
-AC_INIT([gtt], [2.3.1], [issues@sigscale.org])
-AC_COPYRIGHT([Copyright (c) 2018-2021 SigScale Global Inc.])
+AC_INIT([gtt], [2.4.0], [issues@sigscale.org])
+AC_COPYRIGHT([Copyright (c) 2018-2024 SigScale Global Inc.])
 AC_PREREQ(2.63)
 AC_CONFIG_SRCDIR([src/gtt_app.erl])
 AC_CONFIG_HEADERS([config.h])
