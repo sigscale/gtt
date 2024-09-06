@@ -47,7 +47,7 @@
 		assoc :: pos_integer(),
 		rk = [] :: [m3ua:routing_key()],
 		ssn = #{} :: #{SSN :: 0..255 => USAP :: pid()},
-		table #{} :: #{TT :: 0..255 => Table :: atom()}}).
+		tables = #{} :: #{TT :: 0..255 => Table :: atom()}}).
 -type state() :: #state{}.
 
 -export_types([options/0]).
