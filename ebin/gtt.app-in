@@ -13,10 +13,5 @@
 		{registered, [gtt]},
 		{applications, [kernel, stdlib, mnesia, m3ua]},
 		{included_applications, [sccp]},
-		{runtime_dependencies,
-				["sccp-2.1.0",
-				"m3ua-1.2.10",
-				"tcap-1.2.6",
-				"sigscale_mibs-1.1.0"]},
 		{env, []},
 		{mod, {gtt_app, []}}]}.
