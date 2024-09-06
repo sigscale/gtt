@@ -1,4 +1,4 @@
-2023-09-05  Vance Shipley <vances@sigscale.org>
+2024-09-05  Vance Shipley <vances@sigscale.org>
 
 	* only insert point code when route on gt
 	* ensure sccp calling/called party address includes point code
