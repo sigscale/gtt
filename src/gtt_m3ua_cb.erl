@@ -1,6 +1,6 @@
 %%% gtt_m3ua_cb.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @copyright 2018 SigScale Global Inc.
+%%% @copyright 2018-2024 SigScale Global Inc.
 %%% @end
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@
 %%% 	function as well as SCCP Management (SCMG).
 %%%
 -module(gtt_m3ua_cb).
--copyright('Copyright (c) 2018 SigScale Global Inc.').
+-copyright('Copyright (c) 2018-2024 SigScale Global Inc.').
 
 %% m3ua_asp_fsm callbacks
 -export([init/6, recv/9, send/11, pause/4, resume/4, status/4,

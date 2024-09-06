@@ -1,3 +1,13 @@
+2023-09-05  Vance Shipley <vances@sigscale.org>
+
+	* only insert point code when route on gt
+	* ensure sccp calling/called party address includes point code
+	* rename gtt table api functions for simplicity
+	* module for global title table api
+	* correct type spec on dpc argument of find_pc/3
+	* build an erlang release package
+	* add build instructions
+
 2023-03-14  Vance Shipley <vances@sigscale.org>
 
 	* handle reentrant install
