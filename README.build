@@ -8,6 +8,7 @@
 mkdir -p shell/lib
 ln -st shell/lib ../../$(ls -d ../tcap.build/shell/lib/tcap-*)
 ln -st shell/lib ../../$(ls -d ../m3ua.build/shell/lib/m3ua-*)
+ln -st shell/lib ../../$(ls -d ../sccp.build/shell/lib/sccp-*)
 ln -st shell/lib ../../$(ls -d ../sigscale_mibs.build/shell/lib/sigscale_mibs-*)
 
 ## Make documentation and test reports available
