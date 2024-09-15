@@ -27,7 +27,7 @@ Note:
 
 ## Building
 	1. mkdir ../gtt.build        (create build directory)
-	2. cp README>build ../gtt.build/README
+	2. cp READ.build ../gtt.build/README
 	3. cd ../gtt.build           (change working directory for build)
 	4. ../gtt/configure          (creates Makefiles)
 	5. make                      (builds entire package)
