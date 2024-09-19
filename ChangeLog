@@ -1,3 +1,11 @@
+2024-09-20  Vance Shipley <vances@sigscale.org>
+
+	* include application upgrade specification
+	* missing link in build readme
+	* revert inserting point code in sccp party address
+	* remove runtime dependencies specification
+	* update copyright year
+
 2024-09-05  Vance Shipley <vances@sigscale.org>
 
 	* only insert point code when route on gt

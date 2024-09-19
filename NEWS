@@ -1,3 +1,9 @@
+September 20, 2024
+------------------
+	- Do not insert PC into SCCP Party Address if route on GT
+	- Application upgrade specification included
+	- Remove runtime dependencies specification
+
 September 8, 2024
 -----------------
 	- Insert PC into SCCP Party Address if route on GT
