@@ -4,8 +4,8 @@
 ## Process this file with automake to produce Makefile.in
 
 appdir = $(beamdir)
-app_DATA = gtt.app
-EXTRA_DIST = gtt.app
+app_DATA = gtt.app gtt.appup
+EXTRA_DIST = gtt.app gtt.appup
 
 beam_DATA = gtt.beam \
 		gtt_app.beam \
