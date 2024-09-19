@@ -95,6 +95,6 @@ AC_ERLANG_CHECK_LIB([sigscale_mibs], [], [AC_MSG_ERROR([sigscale_mibs was not fo
 ## Output:  create output files
 ## 
 AC_OUTPUT([Makefile include/Makefile ebin/Makefile doc/Makefile
-		priv/Makefile priv/www/Makefile
-		test/Makefile $PACKAGE_NAME.rel sys.config])
+		priv/Makefile priv/www/Makefile test/Makefile
+		$PACKAGE_NAME.rel $PACKAGE_NAME.appup sys.config])
 

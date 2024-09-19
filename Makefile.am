@@ -4,6 +4,8 @@
 
 SUBDIRS = include ebin doc test priv
 
+beam_DATA = ebin/gtt.appup
+
 RELEASE_NAME = $(PACKAGE_NAME)-$(PACKAGE_VERSION)
 
 .PHONY: release
