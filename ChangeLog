@@ -1,3 +1,7 @@
+2024-09-23  Vance Shipley <vances@sigscale.org>
+
+	* include all application upgrade files in release package
+
 2024-09-20  Vance Shipley <vances@sigscale.org>
 
 	* include application upgrade specification
