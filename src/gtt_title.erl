@@ -130,7 +130,7 @@ delete(Table, Address) when is_atom(Table), is_list(Address) ->
 %% @doc Lookup the AS with the first matching address prefix.
 %%
 lookup_first(Table, [Digit | Rest]) when is_atom(Table) ->
-	F1 = fun F([H | T], [#gtt_title{num = Prefix, as = undefined}]) ->
+	F1 = fun F([H | T], [#gtt_title{gtai = Prefix, as = undefined}]) ->
 				F(T, mnesia:read(Table, Prefix ++ [H], read));
 			F(_, [#gtt_title{as = AS}]) ->
 				AS
@@ -285,7 +285,7 @@ delete(Table) when is_atom(Table) ->
 %% @hidden
 insert(Table, [H | []], AS, Acc) ->
 	Address =  Acc ++ [H],
-	Gtt = #gtt_title{num = Address, as = AS},
+	Gtt = #gtt_title{gtai = Address, as = AS},
 	mnesia:write(Table, Gtt, write);
 insert(Table, [H | T], AS, Acc) ->
 	Address =  Acc ++ [H],
@@ -293,7 +293,7 @@ insert(Table, [H | T], AS, Acc) ->
 		[#gtt_title{}] ->
 			insert(Table, T, AS, Address);
 		[] ->
-			ok = mnesia:write(Table, #gtt_title{num = Address}, write),
+			ok = mnesia:write(Table, #gtt_title{gtai = Address}, write),
 			insert(Table, T, AS, Address)
 	end.
 

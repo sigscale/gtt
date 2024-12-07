@@ -51,6 +51,6 @@
 		as :: m3ua:routing_key() | '$1' | undefined}).
 
 -record(gtt_title,
-		{num :: string() | '_' | '$1',
-		as :: m3ua:routing_key() | '$2' | undefined}).
+		{gtai :: [Digit :: 0..15] | '_' | '$1',
+		value :: term() | '$2' | undefined}).
 
