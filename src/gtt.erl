@@ -25,9 +25,11 @@
 -export([add_as/8, delete_as/1, get_as/0, find_as/1]).
 -export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
 		find_pc/3, find_pc/4]).
--export([candidates/1, select_asp/2]).
+-export([add_tt/4, delete_tt/3]).
+-export([translate/1, candidates/1, select_asp/2]).
 
 -include("gtt.hrl").
+-include_lib("sccp/include/sccp.hrl").
 
 -define(TRANSFERWAIT, 1000).
 -define(BLOCKTIME, 100).
@@ -401,7 +403,7 @@ candidates([RC | _] = ASs) when is_integer(RC) ->
 				lists:flatten(lists:reverse(Acc))
 	end,
 	candidates1(F(ASs, []));
-candidates([RK | _] = ASs) when is_tuple(RK) ->
+candidates([RK | _] = ASs) when tuple_size(RK) == 3 ->
 	MatchHead = match_head(),
 	F1 = fun({NA, Keys, Mode}) ->
 			{'=:=', '$1', {{NA, [{Key} || Key <- Keys], Mode}}}
@@ -517,6 +519,153 @@ select_asp(ActiveAsps, Weights)
 					{Fsm, congested, AddedWeights}
 			end
 	end.
+
+-spec add_tt(TT, NP, NAI, Translator) -> Result
+	when
+		TT :: 0..254,
+		NP :: 0..15 | undefined,
+		NAI :: 0..127 | undefined,
+		Translator :: TableName | TranslateFun,
+		TableName :: atom(),
+		TranslateFun :: {Module, Function},
+		Module :: atom(),
+		Function :: atom(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Add a translation type.
+%%
+%% 	A global title indicator (GTI) may identify a translation type (TT).
+%% 	A specific translator may be defined for each combination of TT,
+%% 	numbering plan (NP) and nature of address indicator (NAI).
+%%
+%% 	A global title translator may be implemented with a
+%% 	{@link //gtt/gtt_title. gtt_title} prefix matching table
+%% 	or a function:
+%% 	```
+%% 	Module:Function(Address) -> Result
+%% 		when
+%% 			Module :: atom(),
+%% 			Function :: atom(),
+%% 			Address :: sccp_codec:party_address(),
+%% 			Result :: {ok, {routing_key, RK}}
+%% 					| {ok, {routing_key, RK, Address}}
+%% 					| {ok, {routing_key, RK, Matched, Replaced}}
+%% 					| {ok, {usap, USAP}}
+%% 					| {ok, {usap, USAP, Address}}
+%% 					| {ok, {usap, USAP, Matched, Replaced}}
+%% 					| {error, Reason},
+%% 			RK :: m3ua:routing_key(),
+%% 			USAP :: pid(),
+%% 			Matched :: [0..15],
+%% 			Replaced :: [0..15],
+%% 			Reason :: not_found | term().
+%% 	'''
+%%
+add_tt(TT, NP, NAI, Translator)
+		when ((TT >= 0) andalso (TT =< 254)),
+		((NP == undfined) orelse ((NP >= 0) andalso (NP =< 15))),
+		((NAI == undfined) orelse ((NAI >= 0) andalso (NAI =< 127))),
+		(is_atom(Translator) orelse ((tuple_size(Translator) == 3)
+				andalso is_atom(element(1, Translator))
+				andalso is_atom(element(2, Translator))
+				andalso is_list(element(3, Translator)))) ->
+	F = fun() ->
+			mnesia:write(gtt_tt, {{TT, NP, NAI}, Translator}, write)
+	end,
+	case mnesia:transaction(F, []) of
+		{atomic, ok} ->
+			ok;
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
+
+-spec delete_tt(TT, NP, NAI) -> Result
+	when
+		TT :: 0..254,
+		NP :: 0..15 | undefined,
+		NAI :: 0..127 | undefined,
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Delete a translation type.
+delete_tt(TT, NP, NAI)
+		when ((TT >= 0) andalso (TT =< 254)),
+		((NP == undfined) orelse ((NP >= 0) andalso (NP =< 15))),
+		((NAI == undfined) orelse ((NAI >= 0) andalso (NAI =< 127))) ->
+	F = fun() ->
+				mnesia:delete(gtt_tt, {TT, NP, NAI}, write)
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			ok;
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
+
+-spec translate(Address) -> Result
+	when
+		Address :: sccp_codec:party_address(),
+		Result :: {ok, Translation} | {error, Reason},
+		Translation :: {routing_key, RK, Address}
+				| {usap, USAP, Address},
+		RK ::  m3ua:routing_key(),
+		USAP :: term(),
+		Reason :: no_such_nature | no_such_address.
+%% @doc Perform global title translation.
+%%
+%% 	See ITU-T Q.714 2.4
+%%
+translate(#party_address{translation_type = TT,
+		numbering_plan = NP, nai = NAI} = Address) ->
+	F = fun () ->
+			mnesia:read(gtt_tt, {TT, NP, NAI}, read)
+	end,
+	translate1(Address, mnesia:async_dirty(F)).
+%% @hidden
+translate1(#party_address{gt = GlobalTitle} = Address, [TableName])
+		when is_atom(TableName) ->
+	translate2(Address, gtt_title:lookup_last(TableName, GlobalTitle));
+translate1(Address, [{M, F, A}])
+		when is_atom(M), is_atom(F), is_list(A) ->
+	translate2(Address, apply(M, F, A));
+translate1(_Address, []) ->
+	{error, no_such_nature}.
+%% @hidden
+translate2(Address, {ok, {routing_key, RK}})
+		when tuple_size(RK) == 3 ->
+	{ok, {routing_key, RK, Address}};
+translate2(_Address, {ok, {routing_key, RK, Address1}})
+		when tuple_size(RK) == 3,
+		is_record(Address1, party_address) ->
+	{ok, {routing_key, RK, Address1}};
+translate2(#party_address{gt = GT1} = Address,
+		{ok, {routing_key, RK, Matched, Replaced}})
+		when tuple_size(RK) == 3,
+		is_list(Matched), is_list(Replaced) ->
+	PrefixLength = length(Matched),
+	SuffixLength = length(GT1) - PrefixLength,
+	GT2 = Replaced ++ lists:sublist(GT1, PrefixLength + 1, SuffixLength),
+	Address1 = Address#party_address{gt = GT2},
+	{ok, {routing_key, RK, Address1}};
+translate2(Address, {ok, {usap, USAP}})
+		when is_pid(USAP) ->
+	{ok, {usap, USAP, Address}};
+translate2(_Address, {ok, {usap, USAP, Address1}})
+		when is_pid(USAP),
+		is_record(Address1, party_address) ->
+	{ok, {usap, USAP, Address1}};
+translate2(#party_address{gt = GT1} = Address,
+		{ok, {usap, USAP, Matched, Replaced}})
+		when is_pid(USAP),
+		is_list(Matched), is_list(Replaced) ->
+	PrefixLength = length(Matched),
+	SuffixLength = length(GT1) - PrefixLength,
+	GT2 = Replaced ++ lists:sublist(GT1, PrefixLength + 1, SuffixLength),
+	Address1 = Address#party_address{gt = GT2},
+	{ok, {usap, USAP, Address1}};
+translate2(_Address, {error, not_found}) ->
+	{error, no_such_address};
+translate2(_Address, {error, Reason}) ->
+	{error, Reason}.
 
 %%----------------------------------------------------------------------
 %%  internal functions

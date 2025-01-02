@@ -50,7 +50,7 @@
 %% @see //kernel/application:start/2
 %%
 start(normal = _StartType, _Args) ->
-	Tables = [gtt_as, gtt_ep, gtt_pc],
+	Tables = [gtt_as, gtt_ep, gtt_pc, gtt_tt],
 	case mnesia:wait_for_tables(Tables, 60000) of
 		ok ->
 			start1();
@@ -313,14 +313,33 @@ install5(Nodes, Tables) ->
 			{type, bag}]) of
 		{atomic, ok} ->
 			error_logger:info_msg("Created new point code table.~n"),
-			{ok, lists:reverse([gtt_pc | Tables])};
+			install6(Nodes, [gtt_pc | Tables]);
 		{aborted, {not_active, _, Node} = Reason} ->
 			error_logger:error_report(["Mnesia not started on node",
 					{node, Node}]),
 			{error, Reason};
 		{aborted, {already_exists, gtt_pc}} ->
 			error_logger:info_msg("Found existing point code table.~n"),
-			{ok, lists:reverse([gtt_pc | Tables])};
+			install6(Nodes, [gtt_pc | Tables]);
+		{aborted, Reason} ->
+			error_logger:error_report([mnesia:error_description(Reason),
+				{error, Reason}]),
+			{error, Reason}
+	end.
+%% @hidden
+install6(Nodes, Tables) ->
+	case mnesia:create_table(gtt_tt, [{disc_copies, Nodes},
+			{user_properties, [{gtt, true}]}]) of
+		{atomic, ok} ->
+			error_logger:info_msg("Created new translation type table.~n"),
+			{ok, lists:reverse([gtt_tt | Tables])};
+		{aborted, {not_active, _, Node} = Reason} ->
+			error_logger:error_report(["Mnesia not started on node",
+					{node, Node}]),
+			{error, Reason};
+		{aborted, {already_exists, gtt_tt}} ->
+			error_logger:info_msg("Found existing translation type table.~n"),
+			{ok, lists:reverse([gtt_tt | Tables])};
 		{aborted, Reason} ->
 			error_logger:error_report([mnesia:error_description(Reason),
 				{error, Reason}]),
