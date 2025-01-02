@@ -26,6 +26,7 @@
 -export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
 		find_pc/3, find_pc/4]).
 -export([add_tt/4, delete_tt/3]).
+-export([add_translation/?]).
 -export([translate/1, candidates/1, select_asp/2]).
 
 -include("gtt.hrl").
@@ -647,15 +648,15 @@ translate2(#party_address{gt = GT1} = Address,
 	Address1 = Address#party_address{gt = GT2},
 	{ok, {routing_key, RK, Address1}};
 translate2(Address, {ok, {usap, USAP}})
-		when is_pid(USAP) ->
+		when is_atom(USAP) ->
 	{ok, {usap, USAP, Address}};
 translate2(_Address, {ok, {usap, USAP, Address1}})
-		when is_pid(USAP),
+		when is_atom(USAP),
 		is_record(Address1, party_address) ->
 	{ok, {usap, USAP, Address1}};
 translate2(#party_address{gt = GT1} = Address,
 		{ok, {usap, USAP, Matched, Replaced}})
-		when is_pid(USAP),
+		when is_atom(USAP),
 		is_list(Matched), is_list(Replaced) ->
 	PrefixLength = length(Matched),
 	SuffixLength = length(GT1) - PrefixLength,
