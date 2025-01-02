@@ -524,8 +524,11 @@ select_asp(ActiveAsps, Weights)
 -spec add_tt(TT, NP, NAI, Translator) -> Result
 	when
 		TT :: 0..254,
-		NP :: 0..15 | undefined,
-		NAI :: 0..127 | undefined,
+		NP :: undefined | unknown | isdn_tele | generic
+				| data | telex | maritime | land_mobile
+				| isdn_mobile | spare | private_net | reserved,
+		NAI :: undefined | unknown | subscriber | national
+				| international | spare | reserved,
 		Translator :: TableName | TranslateFun,
 		TableName :: atom(),
 		TranslateFun :: {Module, Function},
@@ -564,8 +567,7 @@ select_asp(ActiveAsps, Weights)
 %%
 add_tt(TT, NP, NAI, Translator)
 		when ((TT >= 0) andalso (TT =< 254)),
-		((NP == undfined) orelse ((NP >= 0) andalso (NP =< 15))),
-		((NAI == undfined) orelse ((NAI >= 0) andalso (NAI =< 127))),
+		is_atom(NP), is_atom(NAI),
 		(is_atom(Translator) orelse ((tuple_size(Translator) == 3)
 				andalso is_atom(element(1, Translator))
 				andalso is_atom(element(2, Translator))
@@ -583,15 +585,17 @@ add_tt(TT, NP, NAI, Translator)
 -spec delete_tt(TT, NP, NAI) -> Result
 	when
 		TT :: 0..254,
-		NP :: 0..15 | undefined,
-		NAI :: 0..127 | undefined,
+		NP :: undefined | unknown | isdn_tele | generic
+				| data | telex | maritime | land_mobile
+				| isdn_mobile | spare | private_net | reserved,
+		NAI :: undefined | unknown | subscriber | national
+				| international | spare | reserved,
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Delete a translation type.
 delete_tt(TT, NP, NAI)
 		when ((TT >= 0) andalso (TT =< 254)),
-		((NP == undfined) orelse ((NP >= 0) andalso (NP =< 15))),
-		((NAI == undfined) orelse ((NAI >= 0) andalso (NAI =< 127))) ->
+		is_atom(NP), is_atom(NAI) ->
 	F = fun() ->
 				mnesia:delete(gtt_tt, {TT, NP, NAI}, write)
 	end,
