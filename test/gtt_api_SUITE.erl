@@ -25,10 +25,12 @@
 -export([init_per_testcase/2, end_per_testcase/2]).
 
 %% export test cases
--export([new_gtt/0, new_gtt/1, 
-		insert_gtt/0, insert_gtt/1, 
-		lookup_first/0, lookup_first/1, 
-		lookup_last/0, lookup_last/1, 
+-export([new_gtt/0, new_gtt/1,
+		insert_gtt/0, insert_gtt/1,
+		lookup_first/0, lookup_first/1,
+		lookup_last/0, lookup_last/1,
+		get_first/0, get_first/1,
+		get_last/0, get_last/1,
 		delete_gtt/0, delete_gtt/1,
 		list_tables/0, list_tables/1,
 		list_table/0, list_table/1,
@@ -106,7 +108,8 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[new_gtt, insert_gtt, lookup_first, lookup_last, delete_gtt,
+	[new_gtt, insert_gtt, lookup_first, lookup_last,
+			get_first, get_last, delete_gtt,
 			list_tables, list_table, clear_table, delete_table,
 			transfer_in_1, transfer_in_10, transfer_in_100,
 			transfer_in_1000].
@@ -152,12 +155,44 @@ lookup_first(_Config) ->
 	AS = {NA, Keys, TMF},
 	fill(Table),
 	gtt_title:insert(Table, Address, AS),
-	AS = gtt_title:lookup_first(Table, Address).
+	{ok, AS} = gtt_title:lookup_first(Table, Address).
 
 lookup_last() ->
 	[{userdata, [{doc, "Find the longest matching prefix."}]}].
 
 lookup_last(_Config) ->
+	Table = ?FUNCTION_NAME,
+	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	Address = address(20),
+	NA = rand:uniform(4294967296) - 1,
+	DPC = rand:uniform(16777216) - 1,
+	Keys = [{DPC, [], []}],
+	TMF = loadshare,
+	AS = {NA, Keys, TMF},
+	fill(Table),
+	gtt_title:insert(Table, Address, AS),
+	{ok, AS} = gtt_title:lookup_first(Table, Address).
+
+get_first() ->
+	[{userdata, [{doc, "get the first matching address."}]}].
+
+get_first(_Config) ->
+	Table = ?FUNCTION_NAME,
+	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	Address = address(),
+	NA = rand:uniform(4294967296) - 1,
+	DPC = rand:uniform(16777216) - 1,
+	Keys = [{DPC, [], []}],
+	TMF = loadshare,
+	AS = {NA, Keys, TMF},
+	fill(Table),
+	gtt_title:insert(Table, Address, AS),
+	AS = gtt_title:lookup_first(Table, Address).
+
+get_last() ->
+	[{userdata, [{doc, "Get the longest matching prefix."}]}].
+
+get_last(_Config) ->
 	Table = ?FUNCTION_NAME,
 	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	Address = address(20),
@@ -282,7 +317,7 @@ fill(Table, N) ->
 	AS = {NA, Keys, TMF},
 	gtt_title:insert(Table, Address, AS),
 	fill(Table, N - 1).
-	
+
 slave() ->
 	Path1 = filename:dirname(code:which(m3ua)),
 	Path2 = filename:dirname(code:which(gtt)),
