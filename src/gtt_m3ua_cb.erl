@@ -37,7 +37,7 @@
 
 -include("gtt.hrl").
 -include_lib("sccp/include/sccp.hrl").
--include_lib("tcap/include/sccp_primitive.hrl").
+-include_lib("sccp/include/sccp_primitive.hrl").
 
 -record(state,
 		{module :: atom(),
@@ -46,15 +46,13 @@
 		ep_name :: term(),
 		assoc :: pos_integer(),
 		rk = [] :: [m3ua:routing_key()],
-		ssn = #{} :: #{SSN :: 0..255 => USAP :: pid()},
-		tables = #{} :: #{TT :: 0..255 => Table :: atom()}}).
+		ssn = #{} :: #{SSN :: 0..255 => USAP :: pid()}}).
 -type state() :: #state{}.
 
 -export_types([options/0]).
 
 -type options() :: [option()].
--type option() :: {ssn, #{SSN :: 0..255 => USAP :: pid()}}
-			| {table, #{TT :: 0..255 => Table :: atom()}}.
+-type option() :: {ssn, #{SSN :: 0..255 => USAP :: pid()}}.
 
 -define(SSN_SCMG, 1).
 -define(SCMG_SSA, 1).
@@ -72,7 +70,7 @@
 %%----------------------------------------------------------------------
 
 %%----------------------------------------------------------------------
-%%  The m3ua_[asp|sgp]_fsm callabcks
+%%  The m3ua_[asp|sgp]_fsm callbacks
 %%----------------------------------------------------------------------
 
 -spec init(Module, Fsm, EP, EpName, Assoc, Options) -> Result
@@ -96,22 +94,20 @@
 		TMT :: m3ua:tmt(),
 		AsName :: term(),
 		Reason :: term().
-%% @doc Initialize ASP/SGP callback handler
-%%%  Called when ASP is started.
+%% @doc Initialize ASP/SGP callback handler.
+%%
+%%  Called when ASP/SGP is started.
+%%
 init(m3ua_sgp_fsm, Fsm, EP, EpName, Assoc, Options) ->
 	SSNs = proplists:get_value(ssn, Options, #{}),
-	Tables = proplists:get_value(table, Options, #{}),
 	State = #state{module = m3ua_sgp_fsm, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc,
-			ssn = SSNs, tables = Tables},
+			ep = EP, ep_name = EpName, assoc = Assoc, ssn = SSNs},
 	[#gtt_ep{as = ASs}] = mnesia:dirty_read(gtt_ep, EpName),
 	init1(ASs, State, []);
 init(Module, Fsm, EP, EpName, Assoc, Options) ->
 	SSNs = proplists:get_value(ssn, Options, #{}),
-	Tables = proplists:get_value(table, Options, #{}),
 	State = #state{module = Module, fsm = Fsm,
-			ep = EP, ep_name = EpName, assoc = Assoc,
-			ssn = SSNs, tables = Tables},
+			ep = EP, ep_name = EpName, assoc = Assoc, ssn = SSNs},
 	{ok, once, State}.
 %% @hidden
 init1([AS | T], State, Acc) ->
@@ -255,8 +251,7 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 		Reason :: term().
 %% @doc MTP-TRANSFER request
 %%%  Called when data has been sent for the MTP user.
-send(From, Ref, _Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _UnitData, State) ->
-	From ! {'MTP-TRANSFER', confirm, Ref},
+send(_From, _Ref, _Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _UnitData, State) ->
 	{ok, once, State}.
 
 -spec pause(Stream, RC, DPCs, State) -> Result
