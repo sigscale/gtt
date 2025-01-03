@@ -8,7 +8,7 @@ testmods = gtt_api_SUITE
 check_DATA = .dialyzer_ok .common_test_ok
 
 DIA_ARGS =
-CT_ARGS =
+CT_ARGS = -spec test.spec
 
 .dialyzer_ok:
 	dialyzer ${DIA_ARGS} --src $(top_srcdir)/src
@@ -21,7 +21,7 @@ CT_ARGS =
 	@if [ ! -f ct.cfg ]; then cp $(top_srcdir)/test/ct.cfg .; fi
 	@if [ ! -f test.spec ]; then cp $(top_srcdir)/test/test.spec .; fi
 	ct_run -no_auto_compile -pa $(top_builddir)/ebin \
-			-logdir log -config ct.cfg -spec test.spec -dir . \
+			-logdir log -config ct.cfg -dir . \
 			$(CT_ARGS) \
 			-erl_args -noshell -sname $(LOGNAME)-ct
 
