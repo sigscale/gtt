@@ -36,13 +36,21 @@
 		list_table/0, list_table/1,
 		clear_table/0, clear_table/1,
 		delete_table/0, delete_table/1,
+		add_tt/0, add_tt/1,
+		add_translation/0, add_translation/1,
+		translation/0, translation/1,
+		translation_fun/0, translation_fun/1,
 		transfer_in_1/0, transfer_in_1/1,
 		transfer_in_10/0, transfer_in_10/1,
 		transfer_in_100/0, transfer_in_100/1,
 		transfer_in_1000/0, transfer_in_1000/1]).
 
+%% export private api
+-export([gtt_translate/3]).
+
 -include_lib("m3ua/include/m3ua.hrl").
 -include_lib("common_test/include/ct.hrl").
+-include_lib("sccp/include/sccp.hrl").
 
 -define(SSN_CAP,   146).
 -define(SSN_INAP,  241).
@@ -65,6 +73,7 @@ init_per_suite(Config) ->
 	application:load(mnesia),
 	ok = application:set_env(mnesia, dir, PrivDir),
 	{ok, [m3ua_asp, m3ua_as]} = m3ua_app:install(),
+	{ok, [gtt_ep, gtt_as, gtt_pc, gtt_tt]} = gtt_app:install(),
 	ok = application:start(inets),
 	ok = application:start(snmp),
 	ok = application:start(sigscale_mibs),
@@ -85,12 +94,7 @@ end_per_suite(_Config) ->
 %% Initiation before each test case.
 %%
 init_per_testcase(_TC, Config) ->
-	case is_alive() of
-			true ->
-				Config;
-			false ->
-				{skip, not_alive}
-	end.
+	Config.
 
 -spec end_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> any().
 %% Cleanup after each test case.
@@ -111,6 +115,7 @@ all() ->
 	[new_gtt, insert_gtt, lookup_first, lookup_last,
 			get_first, get_last, delete_gtt,
 			list_tables, list_table, clear_table, delete_table,
+			add_tt, add_translation, translation, translation_fun,
 			transfer_in_1, transfer_in_10, transfer_in_100,
 			transfer_in_1000].
 
@@ -120,7 +125,6 @@ all() ->
 
 new_gtt() ->
 	[{userdata, [{doc, "Create a new global title table."}]}].
-
 
 new_gtt(_Config) ->
 	Table = ?FUNCTION_NAME,
@@ -132,13 +136,13 @@ insert_gtt() ->
 
 insert_gtt(_Config) ->
 	Table = ?FUNCTION_NAME,
-	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	Address = address(),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
-	AS = {NA, Keys, TMF},
+	AS = {routing_key, {NA, Keys, TMF}},
 	true = gtt_title:insert(Table, Address, AS).
 
 lookup_first() ->
@@ -146,77 +150,77 @@ lookup_first() ->
 
 lookup_first(_Config) ->
 	Table = ?FUNCTION_NAME,
-	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	Address = address(),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
-	AS = {NA, Keys, TMF},
+	AS = {routing_key, {NA, Keys, TMF}},
 	fill(Table),
 	gtt_title:insert(Table, Address, AS),
-	{ok, AS} = gtt_title:lookup_first(Table, Address).
+	{ok, _} = gtt_title:lookup_first(Table, Address).
 
 lookup_last() ->
 	[{userdata, [{doc, "Find the longest matching prefix."}]}].
 
 lookup_last(_Config) ->
 	Table = ?FUNCTION_NAME,
-	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
-	Address = address(20),
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	Address = address(),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
-	AS = {NA, Keys, TMF},
+	AS = {routing_key, {NA, Keys, TMF}},
 	fill(Table),
 	gtt_title:insert(Table, Address, AS),
-	{ok, AS} = gtt_title:lookup_first(Table, Address).
+	{ok, AS} = gtt_title:lookup_last(Table, Address).
 
 get_first() ->
 	[{userdata, [{doc, "get the first matching address."}]}].
 
 get_first(_Config) ->
 	Table = ?FUNCTION_NAME,
-	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	Address = address(),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
-	AS = {NA, Keys, TMF},
+	AS = {routing_key, {NA, Keys, TMF}},
 	fill(Table),
 	gtt_title:insert(Table, Address, AS),
-	AS = gtt_title:lookup_first(Table, Address).
+	_ = gtt_title:get_first(Table, Address).
 
 get_last() ->
 	[{userdata, [{doc, "Get the longest matching prefix."}]}].
 
 get_last(_Config) ->
 	Table = ?FUNCTION_NAME,
-	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	Address = address(20),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
-	AS = {NA, Keys, TMF},
+	AS = {routing_key, {NA, Keys, TMF}},
 	fill(Table),
 	gtt_title:insert(Table, Address, AS),
-	AS = gtt_title:lookup_first(Table, Address).
+	AS = gtt_title:get_last(Table, Address).
 
 delete_gtt() ->
 	[{userdata, [{doc, "Delete one entry from the table."}]}].
 
 delete_gtt(_Config) ->
 	Table = ?FUNCTION_NAME,
-	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	Address = address(),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
-	AS = {NA, Keys, TMF},
+	AS = {routing_key, {NA, Keys, TMF}},
 	fill(Table),
 	gtt_title:insert(Table, Address, AS),
 	true = gtt_title:delete(Table, Address).
@@ -225,9 +229,9 @@ list_tables() ->
 	[{userdata, [{doc, "List all global title tables."}]}].
 
 list_tables(_Config) ->
-	gtt_title:new(one, [{disc_copies, [node() | nodes()]}]),
-	gtt_title:new(two, [{disc_copies, [node() | nodes()]}]),
-	gtt_title:new(three, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(one, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(two, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(three, [{disc_copies, [node() | nodes()]}]),
 	Tables = gtt_title:list(),
 	true = lists:member(one, Tables),
 	true = lists:member(two, Tables),
@@ -238,7 +242,7 @@ list_table() ->
 
 list_table(_Config) ->
 	Table = ?FUNCTION_NAME,
-	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	N = rand:uniform(500) + 100,
 	fill(Table, N),
 	F = fun F({eof, L}, Acc) ->
@@ -253,7 +257,7 @@ clear_table() ->
 
 clear_table(_Config) ->
 	Table = ?FUNCTION_NAME,
-	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	fill(Table),
 	ok = gtt_title:clear(Table).
 
@@ -262,9 +266,86 @@ delete_table() ->
 
 delete_table(_Config) ->
 	Table = ?FUNCTION_NAME,
-	gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	fill(Table),
 	ok = gtt_title:delete(Table).
+
+add_tt() ->
+	[{userdata, [{doc, "Add a global title translation type."}]}].
+
+add_tt(_Config) ->
+	Table = ?FUNCTION_NAME,
+	TT = 1,
+	NP = isdn_tele,
+	NAI = national,
+	ok = gtt:add_tt(TT, NP, NAI, Table).
+
+add_translation() ->
+	[{userdata, [{doc, "Add a global title translation."}]}].
+
+add_translation(_Config) ->
+	Table = ?FUNCTION_NAME,
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	TT = 1,
+	NP = isdn_tele,
+	NAI = national,
+	ok = gtt:add_tt(TT, NP, NAI, Table),
+	Prefix = address(5),
+	Replace = address(6),
+	USAP = cse_tsl,
+	ok = gtt:add_translation(Table,
+			sccp_codec:global_title(Prefix),
+			sccp_codec:global_title(Replace), usap, USAP).
+
+translation() ->
+	[{userdata, [{doc, "Perform global title translation with table"}]}].
+
+translation(_Config) ->
+	Table = ?FUNCTION_NAME,
+	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	TT = 1,
+	NP = isdn_tele,
+	NAI = national,
+	ok = gtt:add_tt(TT, NP, NAI, Table),
+	fill(Table),
+	Prefix = address(5),
+	Replace = address(5),
+	Rest = address(7),
+	USAP = cse_tsl,
+	ok = gtt:add_translation(Table,
+			sccp_codec:global_title(Prefix),
+			sccp_codec:global_title(Replace), usap, USAP),
+	GT1 = Prefix ++ Rest,
+	GT2 = Replace ++ Rest,
+	Address1 = #party_address{ri = false,
+			translation_type = TT,
+			numbering_plan = NP,
+			encoding_scheme = bcd_even,
+			nai = NAI,
+			gt = GT1},
+	Address2 = Address1#party_address{gt = GT2},
+	{ok, {usap, USAP, Address2}} = gtt:translate(Address1).
+
+translation_fun() ->
+	[{userdata, [{doc, "Perform global title translation with function"}]}].
+
+translation_fun(_Config) ->
+	TT = 1,
+	NP = isdn_tele,
+	NAI = national,
+	Prefix = address(5),
+	Replace = address(5),
+	Rest = address(7),
+	MFA = {?MODULE, gtt_translate, [Prefix, Replace]},
+	ok = gtt:add_tt(TT, NP, NAI, MFA),
+	Address1 = #party_address{ri = false,
+			translation_type = TT,
+			numbering_plan = NP,
+			encoding_scheme = bcd_even,
+			nai = NAI,
+			gt = Prefix ++ Rest},
+	Address2 = Address1#party_address{gt = Replace ++ Rest},
+	{ok, {routing_key, _RK, Address2}} = gtt:translate(Address1).
 
 transfer_in_1() ->
 	[{userdata, [{doc, "Transfer MTP3 payload to SG (once)."}]}].
@@ -291,30 +372,53 @@ transfer_in_1000(_Config) ->
 	transfer_in(1000).
 
 %%---------------------------------------------------------------------
+%%  private api
+%%---------------------------------------------------------------------
+
+gtt_translate(#party_address{gt = GT} = Address,
+		Match, Replace) ->
+	gtt_translate(Address, Match, Replace, lists:prefix(Match, GT)).
+
+gtt_translate(#party_address{gt = GT1} = Address1,
+		Match, Replace, true) ->
+	NA = rand:uniform(4294967296) - 1,
+	DPC = rand:uniform(16777216) - 1,
+	Keys = [{DPC, [], []}],
+	TMF = loadshare,
+	RK = {NA, Keys, TMF},
+	PrefixLength = length(Match),
+	SuffixLength = length(GT1) - PrefixLength,
+	GT2 = Replace ++ lists:sublist(GT1, PrefixLength + 1, SuffixLength),
+	Address2 = Address1#party_address{gt = GT2},
+	{ok, {routing_key, RK, Address2}};
+gtt_translate(_Address, _Match, _Replace, false) ->
+	{error, not_found}.
+
+%%---------------------------------------------------------------------
 %%  Internal functions
 %%---------------------------------------------------------------------
 
 address() ->
-	address(rand:uniform(10)).
+	address(rand:uniform(12)).
 address(N) ->
 	address(N, []).
 address(0, Acc) ->
 	Acc;
 address(N, Acc) ->
-	Digit = rand:uniform(10) - 1 + $0,
-	address(N - 1, [Digit, Acc]).
+	Digit = rand:uniform(10) - 1,
+	address(N - 1, [Digit | Acc]).
 
 fill(Table) ->
 	fill(Table, 50).
 fill(_Table, 0) ->
 	ok;
 fill(Table, N) ->
-	Address = address(),
+	Address = address(12),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
-	AS = {NA, Keys, TMF},
+	AS = {routing_key, {NA, Keys, TMF}},
 	gtt_title:insert(Table, Address, AS),
 	fill(Table, N - 1).
 
