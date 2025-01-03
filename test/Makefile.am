@@ -7,8 +7,11 @@ testmods = gtt_api_SUITE
 
 check_DATA = .dialyzer_ok .common_test_ok
 
+DIA_ARGS =
+CT_ARGS =
+
 .dialyzer_ok:
-	dialyzer --src $(top_srcdir)/src
+	dialyzer ${DIA_ARGS} --src $(top_srcdir)/src
 
 %.beam:$(top_srcdir)/test/%.erl
 	$(ERLC) $(ERLCFLAGS) -I $(top_srcdir)/include $<
@@ -17,7 +20,10 @@ check_DATA = .dialyzer_ok .common_test_ok
 	@if [ ! -d log ]; then mkdir log; fi
 	@if [ ! -f ct.cfg ]; then cp $(top_srcdir)/test/ct.cfg .; fi
 	@if [ ! -f test.spec ]; then cp $(top_srcdir)/test/test.spec .; fi
-	ct_run -no_auto_compile -pa $(top_builddir)/ebin -logdir log -config ct.cfg -spec test.spec -dir . -erl_args -noshell -sname $(LOGNAME)-ct
+	ct_run -no_auto_compile -pa $(top_builddir)/ebin \
+			-logdir log -config ct.cfg -spec test.spec -dir . \
+			$(CT_ARGS) \
+			-erl_args -noshell -sname $(LOGNAME)-ct
 
 clean-local:
 	-rm -r log/*
