@@ -26,7 +26,7 @@
 -export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
 		find_pc/3, find_pc/4]).
 -export([add_tt/4, delete_tt/3]).
--export([add_translation/?]).
+-export([add_translation/4, add_translation/5]).
 -export([translate/1, candidates/1, select_asp/2]).
 
 -include("gtt.hrl").
@@ -531,9 +531,10 @@ select_asp(ActiveAsps, Weights)
 				| international | spare | reserved,
 		Translator :: TableName | TranslateFun,
 		TableName :: atom(),
-		TranslateFun :: {Module, Function},
+		TranslateFun :: {Module, Function, ExtraArgs},
 		Module :: atom(),
 		Function :: atom(),
+		ExtraArgs :: [term()],
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Add a translation type.
@@ -546,7 +547,7 @@ select_asp(ActiveAsps, Weights)
 %% 	{@link //gtt/gtt_title. gtt_title} prefix matching table
 %% 	or a function:
 %% 	```
-%% 	Module:Function(Address) -> Result
+%% 	Module:Function(Address, ...) -> Result
 %% 		when
 %% 			Module :: atom(),
 %% 			Function :: atom(),
@@ -573,7 +574,7 @@ add_tt(TT, NP, NAI, Translator)
 				andalso is_atom(element(2, Translator))
 				andalso is_list(element(3, Translator)))) ->
 	F = fun() ->
-			mnesia:write(gtt_tt, {{TT, NP, NAI}, Translator}, write)
+			mnesia:write(gtt_tt, {gtt_tt, {TT, NP, NAI}, Translator}, write)
 	end,
 	case mnesia:transaction(F, []) of
 		{atomic, ok} ->
@@ -606,6 +607,88 @@ delete_tt(TT, NP, NAI)
 			{error, Reason}
 	end.
 
+-spec add_translation(TableName, Prefix, Type, SAP) -> Result
+	when
+		TableName :: atom(),
+		Prefix :: [Digit],
+		Digit :: 0..15 | $0..$9,
+		Type :: routing_key | usap,
+		SAP :: USAP | AS,
+		USAP :: atom(),
+		AS :: m3ua:routing_key(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Add a global title translation.
+add_translation(TableName, [H | _] = Prefix, Type, SAP)
+		when H >= $0, H =< $9 ->
+	add_translation(TableName, sccp_codec:global_title(Prefix), Type, SAP);
+add_translation(TableName, [H | _] = Prefix, usap, USAP)
+		when is_atom(TableName), H >= 0, H =< 15, is_atom(USAP) ->
+	Value = {usap, USAP},
+	try gtt_title:insert(TableName, Prefix, Value) of
+		true ->
+			ok
+	catch
+		_Error:Reason ->
+			{error, Reason}
+	end;
+add_translation(TableName,  [H | _] = Prefix, routing_key, RK)
+		when is_atom(TableName), H >= 0, H =< 15,
+		tuple_size(RK) == 3 ->
+	Value = {routing_key, RK},
+	try gtt_title:insert(TableName, Prefix, Value) of true ->
+			ok
+	catch
+		_Error:Reason ->
+			{error, Reason}
+	end.
+
+-spec add_translation(TableName, Prefix, Replace, Type, SAP) -> Result
+	when
+		TableName :: atom(),
+		Prefix :: [Digit],
+		Replace :: [Digit],
+		Digit :: 0..15 | $0..$9,
+		Type :: routing_key | usap,
+		SAP :: USAP | AS,
+		USAP :: atom(),
+		AS :: m3ua:routing_key(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Add a global title translation.
+add_translation(TableName, [H | _] = Prefix, Replace, Type, SAP)
+		when H >= $0, H =< $9 ->
+	add_translation(TableName,
+			sccp_codec:global_title(Prefix), Replace, Type, SAP);
+add_translation(TableName, Prefix, [H | _] = Replace, Type, SAP)
+		when H >= $0, H =< $9 ->
+	add_translation(TableName,
+			Prefix, sccp_codec:global_title(Replace), Type, SAP);
+add_translation(TableName, [H1 | _] = Prefix, [H2 | _] = Replace,
+		usap, USAP) when is_atom(TableName),
+		H1 >= 0, H1 =< 15, H2 >= 0, H2 =< 15,
+		is_atom(USAP) ->
+	Value = {usap, USAP, Prefix, Replace},
+	try gtt_title:insert(TableName, Prefix, Value) of
+		true ->
+			ok
+	catch
+		_Error:Reason ->
+			{error, Reason}
+	end;
+add_translation(TableName, [H1 | _] = Prefix, [H2 | _] = Replace,
+		routing_key, RK) when is_atom(TableName),
+		H1 >= 0, H1 =< 15, H2 >= 0, H2 =< 15,
+		tuple_size(RK) == 3 ->
+	Value = {routing_key, RK, Prefix, Replace},
+	try gtt_title:insert(TableName, Prefix, Value) of
+		true ->
+			ok
+	catch
+		_Error:Reason ->
+			{error, Reason}
+	end.
+
 -spec translate(Address) -> Result
 	when
 		Address :: sccp_codec:party_address(),
@@ -626,12 +709,13 @@ translate(#party_address{translation_type = TT,
 	end,
 	translate1(Address, mnesia:async_dirty(F)).
 %% @hidden
-translate1(#party_address{gt = GlobalTitle} = Address, [TableName])
+translate1(#party_address{gt = GlobalTitle} = Address,
+		[{gtt_tt, _, TableName}])
 		when is_atom(TableName) ->
 	translate2(Address, gtt_title:lookup_last(TableName, GlobalTitle));
-translate1(Address, [{M, F, A}])
-		when is_atom(M), is_atom(F), is_list(A) ->
-	translate2(Address, apply(M, F, A));
+translate1(Address, [{gtt_tt, _, {Module, Function, ExtraArgs}}])
+		when is_atom(Module), is_atom(Function), is_list(ExtraArgs) ->
+	translate2(Address, apply(Module, Function, [Address | ExtraArgs]));
 translate1(_Address, []) ->
 	{error, no_such_nature}.
 %% @hidden
