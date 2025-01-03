@@ -30,6 +30,7 @@
 
 -include("gtt.hrl").
 
+-define(WAIT, 10000).
 -define(CHUNKSIZE, 100).
 
 %%----------------------------------------------------------------------
@@ -60,10 +61,17 @@ new(Table, Options)
 			{attributes, record_info(fields, gtt_title)},
 			{record_name, gtt_title}]) of
 		{atomic, ok} ->
-			ok;
+			new1(mnesia:wait_for_tables([Table], ?WAIT));
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
+%% @hidden
+new1(ok) ->
+	ok;
+new1({timeout, [Table]}) ->
+	{error, timeout};
+new1({error, Reason}) ->
+	{error, Reason}.
 
 -spec insert(Table, Address, Value) -> true
 	when
