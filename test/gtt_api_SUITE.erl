@@ -151,13 +151,13 @@ lookup_first() ->
 lookup_first(_Config) ->
 	Table = ?FUNCTION_NAME,
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
-	Address = address(),
+	fill(Table),
+	Address = address(12),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
 	AS = {routing_key, {NA, Keys, TMF}},
-	fill(Table),
 	gtt_title:insert(Table, Address, AS),
 	{ok, _} = gtt_title:lookup_first(Table, Address).
 
@@ -167,13 +167,13 @@ lookup_last() ->
 lookup_last(_Config) ->
 	Table = ?FUNCTION_NAME,
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
-	Address = address(),
+	fill(Table),
+	Address = address(12),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
 	AS = {routing_key, {NA, Keys, TMF}},
-	fill(Table),
 	gtt_title:insert(Table, Address, AS),
 	{ok, AS} = gtt_title:lookup_last(Table, Address).
 
@@ -183,13 +183,13 @@ get_first() ->
 get_first(_Config) ->
 	Table = ?FUNCTION_NAME,
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
-	Address = address(),
+	fill(Table),
+	Address = address(12),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
 	AS = {routing_key, {NA, Keys, TMF}},
-	fill(Table),
 	gtt_title:insert(Table, Address, AS),
 	_ = gtt_title:get_first(Table, Address).
 
@@ -199,13 +199,13 @@ get_last() ->
 get_last(_Config) ->
 	Table = ?FUNCTION_NAME,
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	fill(Table),
 	Address = address(20),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
 	AS = {routing_key, {NA, Keys, TMF}},
-	fill(Table),
 	gtt_title:insert(Table, Address, AS),
 	AS = gtt_title:get_last(Table, Address).
 
@@ -215,13 +215,13 @@ delete_gtt() ->
 delete_gtt(_Config) ->
 	Table = ?FUNCTION_NAME,
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
-	Address = address(),
+	fill(Table),
+	Address = address(12),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
 	TMF = loadshare,
 	AS = {routing_key, {NA, Keys, TMF}},
-	fill(Table),
 	gtt_title:insert(Table, Address, AS),
 	true = gtt_title:delete(Table, Address).
 
@@ -291,7 +291,7 @@ add_translation(_Config) ->
 	NAI = national,
 	ok = gtt:add_tt(TT, NP, NAI, Table),
 	Prefix = address(5),
-	Replace = address(6),
+	Replace = address(5),
 	USAP = cse_tsl,
 	ok = gtt:add_translation(Table,
 			sccp_codec:global_title(Prefix),
@@ -303,14 +303,14 @@ translation() ->
 translation(_Config) ->
 	Table = ?FUNCTION_NAME,
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
+	fill(Table),
 	TT = 1,
 	NP = isdn_tele,
 	NAI = national,
 	ok = gtt:add_tt(TT, NP, NAI, Table),
-	fill(Table),
-	Prefix = address(5),
-	Replace = address(5),
-	Rest = address(7),
+	Prefix = address(10),
+	Replace = address(10),
+	Rest = address(2),
 	USAP = cse_tsl,
 	ok = gtt:add_translation(Table,
 			sccp_codec:global_title(Prefix),
@@ -399,7 +399,7 @@ gtt_translate(_Address, _Match, _Replace, false) ->
 %%---------------------------------------------------------------------
 
 address() ->
-	address(rand:uniform(12)).
+	address(rand:uniform(10)).
 address(N) ->
 	address(N, []).
 address(0, Acc) ->
@@ -413,7 +413,8 @@ fill(Table) ->
 fill(_Table, 0) ->
 	ok;
 fill(Table, N) ->
-	Address = address(12),
+	Address = address(10),
+erlang:display({?MODULE, ?FUNCTION_NAME, Address}),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],
