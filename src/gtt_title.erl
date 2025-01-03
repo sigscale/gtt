@@ -349,14 +349,14 @@ delete(Table) when is_atom(Table) ->
 %%----------------------------------------------------------------------
 
 %% @hidden
-insert(Table, [H | []], Value, Acc) ->
+insert(Table, [H], Value, Acc) ->
 	Address =  Acc ++ [H],
 	Gtt = #gtt_title{gtai = Address, value = Value},
 	mnesia:write(Table, Gtt, write);
 insert(Table, [H | T], Value, Acc) ->
 	Address =  Acc ++ [H],
 	case mnesia:read(Table, Address, write) of
-		[#gtt_title{}] ->
+		[#gtt_title{value = undefined}] ->
 			insert(Table, T, Value, Address);
 		[] ->
 			ok = mnesia:write(Table, #gtt_title{gtai = Address}, write),
