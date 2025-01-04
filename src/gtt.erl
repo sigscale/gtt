@@ -28,6 +28,7 @@
 -export([add_tt/4, delete_tt/3]).
 -export([add_translation/4, add_translation/5]).
 -export([translate/1, candidates/1, select_asp/2]).
+-export([national_to_international/4, international_to_national/4]).
 
 -include("gtt.hrl").
 -include_lib("sccp/include/sccp.hrl").
@@ -565,6 +566,10 @@ select_asp(ActiveAsps, Weights)
 %% 			Replaced :: [0..15],
 %% 			Reason :: not_found | term().
 %% 	'''
+%% 	An example of a `TranslateFun' value is:
+%% 	```
+%% 	{sccp, international_to_national, [[1], usap, {local, cse_tsl}]}
+%% 	'''
 %%
 add_tt(TT, NP, NAI, Translator)
 		when ((TT >= 0) andalso (TT =< 254)),
@@ -760,6 +765,63 @@ translate2(_Address, {error, not_found}) ->
 	{error, no_such_address};
 translate2(_Address, {error, Reason}) ->
 	{error, Reason}.
+
+-spec international_to_national(Address, CountryCode,
+		RouteType, RouteTo) -> Result
+	when
+		Address :: sccp_codec:party_address(),
+		CountryCode :: [Digit],
+		Digit :: 0..15,
+		RouteType :: routing_key | usap,
+		RouteTo :: USAP | RK,
+		USAP :: gen_server:server_name(),
+		RK :: m3ua:routing_key(),
+		Result :: {ok, {routing_key, RK, Address}}
+				| {ok, {usap, USAP, Address}}
+				| {error, Reason},
+		RK :: m3ua:routing_key(),
+		Reason :: no_such_nature | no_such_address | term().
+%% @doc Translate international address to national.
+international_to_national(#party_address{nai = international,
+		gt = GT1} = Address, CountryCode, RouteType, RouteTo) ->
+	international_to_national(Address, CountryCode,
+			RouteType, RouteTo, lists:prefix(CountryCode, GT1));
+international_to_national(_, _, _, _) ->
+	{error, no_such_nature}.
+%% @hidden
+international_to_national(#party_address{gt = GT1} = Address,
+		CountryCode, RouteType, RouteTo, true) ->
+	PrefixLength = length(CountryCode),
+	SuffixLength = length(GT1) - PrefixLength,
+	GT2 = lists:sublist(GT1, PrefixLength + 1, SuffixLength),
+	Address1 = Address#party_address{nai = national, gt = GT2},
+	{ok, {RouteType, RouteTo, Address1}};
+international_to_national(_, _, _, _, false) ->
+	{error, no_such_address}.
+
+-spec national_to_international(Address, CountryCode,
+		RouteType, RouteTo) -> Result
+	when
+		Address :: sccp_codec:party_address(),
+		CountryCode :: [Digit],
+		Digit :: 0..15,
+		RouteType :: routing_key | usap,
+		RouteTo :: USAP | RK,
+		USAP :: gen_server:server_name(),
+		RK :: m3ua:routing_key(),
+		Result :: {ok, {routing_key, RK, Address}}
+				| {ok, {usap, USAP, Address}}
+				| {error, Reason},
+		RK :: m3ua:routing_key(),
+		Reason :: no_such_nature | no_such_address | term().
+%% @doc Translate national address to international.
+national_to_international(#party_address{nai = national,
+		gt = GT1} = Address, CountryCode, RouteType, RouteTo) ->
+	GT2 = CountryCode ++ GT1,
+	Address1 = Address#party_address{nai = international, gt = GT2},
+	{ok, {RouteType, RouteTo, Address1}};
+national_to_international(_, _, _, _) ->
+	{error, no_such_nature}.
 
 %%----------------------------------------------------------------------
 %%  internal functions
