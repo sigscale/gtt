@@ -143,17 +143,17 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 				{ok, once, State}
 	end,
 	case catch sccp_codec:sccp(UnitData1) of
-		#sccp_unitdata{called_party = #party_address{ri = true,
+		#sccp_unitdata{called_party = #party_address{ri = route_on_ssn,
 				ssn = ?SSN_SCMG}} = UnitData2 ->
 			Fscmg(sccp_management(DPC, UnitData2));
-		#sccp_extended_unitdata{called_party = #party_address{ri = true,
+		#sccp_extended_unitdata{called_party = #party_address{ri = route_on_ssn,
 				ssn = ?SSN_SCMG}} = UnitData2 ->
 			Fscmg(sccp_management(DPC, UnitData2));
-		#sccp_long_unitdata{called_party = #party_address{ri = true,
+		#sccp_long_unitdata{called_party = #party_address{ri = route_on_ssn,
 				ssn = ?SSN_SCMG}} = UnitData2 ->
 			Fscmg(sccp_management(DPC, UnitData2));
 		#sccp_unitdata{data = Data, class = Class,
-				called_party = #party_address{ri = true, ssn = SSN} = CalledParty,
+				called_party = #party_address{ri = route_on_ssn, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
 				when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
@@ -165,7 +165,7 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_unitdata{data = Data, class = Class,
-				called_party = #party_address{ri = false, ssn = SSN} = CalledParty,
+				called_party = #party_address{ri = route_on_gt, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
 				when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
@@ -177,7 +177,7 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_extended_unitdata{data = Data, class = Class,
-				called_party = #party_address{ri = true, ssn = SSN} = CalledParty,
+				called_party = #party_address{ri = route_on_ssn, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
 				when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
@@ -189,7 +189,7 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_extended_unitdata{data = Data, class = Class,
-				called_party = #party_address{ri = false, ssn = SSN} = CalledParty,
+				called_party = #party_address{ri = route_on_gt, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
 				when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
@@ -201,7 +201,7 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_long_unitdata{data = Data, class = Class,
-				called_party = #party_address{ri = true, ssn = SSN} = CalledParty,
+				called_party = #party_address{ri = route_on_ssn, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
 				when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
@@ -213,7 +213,7 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_long_unitdata{data = Data, class = Class,
-				called_party = #party_address{ri = false, ssn = SSN} = CalledParty,
+				called_party = #party_address{ri = route_on_gt, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
 				when is_map_key(SSN, SSNs) ->
 			UnitData2 = #'N-UNITDATA'{userData = Data,
@@ -467,7 +467,7 @@ sccp_management1(DPC, CalledParty, CallingParty,
 			{ssn, SSN}, {pc, sccp:point_code(sccp_codec:point_code(PC))}]),
 	LocalPC = sccp_codec:point_code(DPC),
 	SSA = <<?SCMG_SSA, SSN, LocalPC/binary, 0>>,
-	SCMGParty = #party_address{ri = true, ssn = ?SSN_SCMG},
+	SCMGParty = #party_address{ri = route_on_ssn, ssn = ?SSN_SCMG},
 	UnitData = #sccp_unitdata{class = 0,
 			called_party = SCMGParty,
 			calling_party = SCMGParty,
