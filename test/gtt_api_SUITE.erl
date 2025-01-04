@@ -292,7 +292,7 @@ add_translation(_Config) ->
 	ok = gtt:add_tt(TT, NP, NAI, Table),
 	Prefix = address(5),
 	Replace = address(5),
-	USAP = cse_tsl,
+	USAP = {local, cse_tsl},
 	ok = gtt:add_translation(Table,
 			sccp_codec:global_title(Prefix),
 			sccp_codec:global_title(Replace), usap, USAP).
@@ -311,7 +311,7 @@ translation(_Config) ->
 	Prefix = address(10),
 	Replace = address(10),
 	Rest = address(2),
-	USAP = cse_tsl,
+	USAP = {local, cse_tsl},
 	ok = gtt:add_translation(Table,
 			sccp_codec:global_title(Prefix),
 			sccp_codec:global_title(Replace), usap, USAP),
@@ -320,7 +320,6 @@ translation(_Config) ->
 	Address1 = #party_address{ri = false,
 			translation_type = TT,
 			numbering_plan = NP,
-			encoding_scheme = bcd_even,
 			nai = NAI,
 			gt = GT1},
 	Address2 = Address1#party_address{gt = GT2},
@@ -341,7 +340,6 @@ translation_fun(_Config) ->
 	Address1 = #party_address{ri = false,
 			translation_type = TT,
 			numbering_plan = NP,
-			encoding_scheme = bcd_even,
 			nai = NAI,
 			gt = Prefix ++ Rest},
 	Address2 = Address1#party_address{gt = Replace ++ Rest},
@@ -414,7 +412,6 @@ fill(_Table, 0) ->
 	ok;
 fill(Table, N) ->
 	Address = address(10),
-erlang:display({?MODULE, ?FUNCTION_NAME, Address}),
 	NA = rand:uniform(4294967296) - 1,
 	DPC = rand:uniform(16777216) - 1,
 	Keys = [{DPC, [], []}],

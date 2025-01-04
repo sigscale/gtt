@@ -560,7 +560,7 @@ select_asp(ActiveAsps, Weights)
 %% 					| {ok, {usap, USAP, Matched, Replaced}}
 %% 					| {error, Reason},
 %% 			RK :: m3ua:routing_key(),
-%% 			USAP :: pid(),
+%% 			USAP :: gen_server:server_name(),
 %% 			Matched :: [0..15],
 %% 			Replaced :: [0..15],
 %% 			Reason :: not_found | term().
@@ -613,9 +613,9 @@ delete_tt(TT, NP, NAI)
 		Prefix :: [Digit],
 		Digit :: 0..15 | $0..$9,
 		Type :: routing_key | usap,
-		SAP :: USAP | AS,
-		USAP :: atom(),
-		AS :: m3ua:routing_key(),
+		SAP :: USAP | RK,
+		USAP :: gen_server:server_name(),
+		RK :: m3ua:routing_key(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Add a global title translation.
@@ -623,7 +623,10 @@ add_translation(TableName, [H | _] = Prefix, Type, SAP)
 		when H >= $0, H =< $9 ->
 	add_translation(TableName, sccp_codec:global_title(Prefix), Type, SAP);
 add_translation(TableName, [H | _] = Prefix, usap, USAP)
-		when is_atom(TableName), H >= 0, H =< 15, is_atom(USAP) ->
+		when is_atom(TableName), H >= 0, H =< 15,
+		((element(1, USAP) == local)
+				orelse (element(1, USAP) == global)
+				orelse (element(1, USAP) == via)) ->
 	Value = {usap, USAP},
 	try gtt_title:insert(TableName, Prefix, Value) of
 		true ->
@@ -650,9 +653,9 @@ add_translation(TableName,  [H | _] = Prefix, routing_key, RK)
 		Replace :: [Digit],
 		Digit :: 0..15 | $0..$9,
 		Type :: routing_key | usap,
-		SAP :: USAP | AS,
-		USAP :: atom(),
-		AS :: m3ua:routing_key(),
+		SAP :: USAP | RK,
+		USAP :: gen_server:server_name(),
+		RK :: m3ua:routing_key(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Add a global title translation.
@@ -667,7 +670,9 @@ add_translation(TableName, Prefix, [H | _] = Replace, Type, SAP)
 add_translation(TableName, [H1 | _] = Prefix, [H2 | _] = Replace,
 		usap, USAP) when is_atom(TableName),
 		H1 >= 0, H1 =< 15, H2 >= 0, H2 =< 15,
-		is_atom(USAP) ->
+		((element(1, USAP) == local)
+				orelse (element(1, USAP) == global)
+				orelse (element(1, USAP) == via)) ->
 	Value = {usap, USAP, Prefix, Replace},
 	try gtt_title:insert(TableName, Prefix, Value) of
 		true ->
@@ -696,7 +701,7 @@ add_translation(TableName, [H1 | _] = Prefix, [H2 | _] = Replace,
 		Translation :: {routing_key, RK, Address}
 				| {usap, USAP, Address},
 		RK ::  m3ua:routing_key(),
-		USAP :: term(),
+		USAP :: gen_server:server_name(),
 		Reason :: no_such_nature | no_such_address.
 %% @doc Perform global title translation.
 %%
@@ -736,15 +741,15 @@ translate2(#party_address{gt = GT1} = Address,
 	Address1 = Address#party_address{gt = GT2},
 	{ok, {routing_key, RK, Address1}};
 translate2(Address, {ok, {usap, USAP}})
-		when is_atom(USAP) ->
+		when is_tuple(USAP) ->
 	{ok, {usap, USAP, Address}};
 translate2(_Address, {ok, {usap, USAP, Address1}})
-		when is_atom(USAP),
+		when is_tuple(USAP),
 		is_record(Address1, party_address) ->
 	{ok, {usap, USAP, Address1}};
 translate2(#party_address{gt = GT1} = Address,
 		{ok, {usap, USAP, Matched, Replaced}})
-		when is_atom(USAP),
+		when is_tuple(USAP),
 		is_list(Matched), is_list(Replaced) ->
 	PrefixLength = length(Matched),
 	SuffixLength = length(GT1) - PrefixLength,
