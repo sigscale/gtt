@@ -26,11 +26,17 @@ UnitData messages addressed to local SubSystem Numbers (SSN) are forwarded
 to the configured Network Service Access Point (NSAP).  For example SSN=146
 is used for CAMEL which is forwarded to the TCAP Transaction Sublayer (TSL).
 
+Global title translation may be used to select an MTP3-User service access
+point (USAP) and transform the called/calling party address.
+
 ===Southbound===
-An MTP3-User sending MTP3 messages to the network may distribute them over
-the ASPs available in an AS using the {@link gtt:select_asp/2} function.
-This allows load sharing through a weighted selection mechanism which avoids
-ASPs with queued messages or slow response of recent messages.
+Global title translation may be used to select an M3UA application server (AS)
+and transform the called/calling party address.
+
+Distribution over the available ASPs in an AS may be supported by the
+{@link gtt:select_asp/2} function. This allows load sharing through a
+weighted selection mechanism which avoids ASPs with queued messages or
+slow response of recent messages.
 
 ==Installation==
 Before starting the application for the first time, {@link //mnesia/mnesia. mnesia}
@@ -42,23 +48,40 @@ The following command will initialize {@link //m3ua. m3ua} on the current node.
 e.g &#058;
 	```
 	(gtt@host)1> gtt_app:install().
-	{ok, [gtt_as, gtt_ep, gtt_pc]}
+	{ok, [gtt_as, gtt_ep, gtt_pc, gtt_tt]}
 	'''
 
 ==Operation==
-Add a Signaling Gateway (SG) with point code 666 named sg1:
+The {@link //gtt. gtt} application manages M3UA application server (AS)
+state and M3UA routing keys, while the {@link //m3ua. m3ua} application
+provides application server processes (ASP). The {@link //gtt. gtt}
+application provides an API to provision both AS and ASP as well as
+SCCP global title translation.
+
+===Initialize M3UA===
+Add a Signaling Gateway (SG) AS with point code `666' named `sg1':
 ```
-1> gtt:add_as(sg1, sg, 0, 0, [{666, [], []}], loadshare, 1, 4).
+(gtt@host)2> gtt:add_as(sg1, sg, 0, 0, [{666, [], []}], loadshare, 1, 4).
 '''
 
-Add an SCTP server endpoint on port 2905 named ep1:
+Add an SCTP server endpoint (ASP), listening on port `2905', named `ep1'
+and implemented by the `gtt_m3ua_cb' callback module:
 ```
-gtt:add_ep(ep1, {{0,0,0,0}, 2905, [{registration, static}]}, undefined, server, sgp, gtt_m3ua_cb, [{ssn, #{146 => cse_tsl}}], [sg1]).
+(gtt@host)3> gtt:add_ep(ep1, {{0,0,0,0}, 2905, [{registration, static}]}, undefined, server, sgp, gtt_m3ua_cb, [{ssn, #{146 => cse_tsl}}], [sg1]).
+'''
+
+===Initialize SCCP GTT===
+In the example below the SG acts as an international gateway:
+```
+(gtt@host)4> gtt:add_tt(0, isdn_tele, international, {gtt, international_to_national, [[1], usap, {local, cse_tsl}]}).
+ok
+(gtt@host)5> gtt:add_tt(0, isdn_tele, national, {gtt, national_to_international, [[1], routing_key, [{666, [], []}]]}).
+ok
 '''
 
 ==Database Schema==
 <table id="mt">
-	<caption id="mt">There are three persistent {@link //mnesia. mnesia} tables:</caption>
+	<caption id="mt">There are four persistent {@link //mnesia. mnesia} tables:</caption>
 	<thead>
 		<tr id="mt">
 			<th id="mt">Table Name</th>
