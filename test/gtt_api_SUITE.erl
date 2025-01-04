@@ -45,9 +45,6 @@
 		transfer_in_100/0, transfer_in_100/1,
 		transfer_in_1000/0, transfer_in_1000/1]).
 
-%% export private api
--export([gtt_translate/3]).
-
 -include_lib("m3ua/include/m3ua.hrl").
 -include_lib("common_test/include/ct.hrl").
 -include_lib("sccp/include/sccp.hrl").
@@ -331,19 +328,19 @@ translation_fun() ->
 translation_fun(_Config) ->
 	TT = 1,
 	NP = isdn_tele,
-	NAI = national,
-	Prefix = address(5),
-	Replace = address(5),
-	Rest = address(7),
-	MFA = {?MODULE, gtt_translate, [Prefix, Replace]},
+	NAI = international,
+	CC = [1],
+	NSN = [4, 1, 6, 5, 5, 5, 1, 2, 3, 4],
+	USAP = {local, cse_tsl},
+	MFA = {gtt, international_to_national, [CC, usap, USAP]},
 	ok = gtt:add_tt(TT, NP, NAI, MFA),
 	Address1 = #party_address{ri = false,
 			translation_type = TT,
 			numbering_plan = NP,
 			nai = NAI,
-			gt = Prefix ++ Rest},
-	Address2 = Address1#party_address{gt = Replace ++ Rest},
-	{ok, {routing_key, _RK, Address2}} = gtt:translate(Address1).
+			gt = CC ++ NSN},
+	Address2 = Address1#party_address{nai = national, gt = NSN},
+	{ok, {usap, USAP, Address2}} = gtt:translate(Address1).
 
 transfer_in_1() ->
 	[{userdata, [{doc, "Transfer MTP3 payload to SG (once)."}]}].
@@ -368,29 +365,6 @@ transfer_in_1000() ->
 
 transfer_in_1000(_Config) ->
 	transfer_in(1000).
-
-%%---------------------------------------------------------------------
-%%  private api
-%%---------------------------------------------------------------------
-
-gtt_translate(#party_address{gt = GT} = Address,
-		Match, Replace) ->
-	gtt_translate(Address, Match, Replace, lists:prefix(Match, GT)).
-
-gtt_translate(#party_address{gt = GT1} = Address1,
-		Match, Replace, true) ->
-	NA = rand:uniform(4294967296) - 1,
-	DPC = rand:uniform(16777216) - 1,
-	Keys = [{DPC, [], []}],
-	TMF = loadshare,
-	RK = {NA, Keys, TMF},
-	PrefixLength = length(Match),
-	SuffixLength = length(GT1) - PrefixLength,
-	GT2 = Replace ++ lists:sublist(GT1, PrefixLength + 1, SuffixLength),
-	Address2 = Address1#party_address{gt = GT2},
-	{ok, {routing_key, RK, Address2}};
-gtt_translate(_Address, _Match, _Replace, false) ->
-	{error, not_found}.
 
 %%---------------------------------------------------------------------
 %%  Internal functions
