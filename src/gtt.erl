@@ -564,11 +564,11 @@ select_asp(ActiveAsps, Weights)
 %% 			USAP :: gen_server:server_name(),
 %% 			Matched :: [0..15],
 %% 			Replaced :: [0..15],
-%% 			Reason :: not_found | term().
+%% 			Reason :: no_such_nature | no_such_address | term().
 %% 	'''
 %% 	An example of a `TranslateFun' value is:
 %% 	```
-%% 	{sccp, international_to_national, [[1], usap, {local, cse_tsl}]}
+%% 	{gtt, international_to_national, [[1], usap, {local, cse_tsl}]}
 %% 	'''
 %%
 add_tt(TT, NP, NAI, Translator)
