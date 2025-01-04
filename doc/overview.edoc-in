@@ -75,7 +75,7 @@ In the example below the SG acts as an international gateway:
 ```
 (gtt@host)4> gtt:add_tt(0, isdn_tele, international, {gtt, international_to_national, [[1], usap, {local, cse_tsl}]}).
 ok
-(gtt@host)5> gtt:add_tt(0, isdn_tele, national, {gtt, national_to_international, [[1], routing_key, [{666, [], []}]]}).
+(gtt@host)5> gtt:add_tt(0, isdn_tele, national, {gtt, national_to_international, [[1], routing_key, {0, [{666, [], []}], loadshare}]}).
 ok
 '''
 
