@@ -135,12 +135,11 @@ insert_gtt(_Config) ->
 	Table = ?FUNCTION_NAME,
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	Address = address(),
-	NA = rand:uniform(4294967296) - 1,
-	DPC = rand:uniform(16777216) - 1,
-	Keys = [{DPC, [], []}],
-	TMF = loadshare,
-	AS = {routing_key, {NA, Keys, TMF}},
-	true = gtt_title:insert(Table, Address, AS).
+	DPC1 = rand:uniform(16777216) - 1,
+	DPC2 = rand:uniform(16777216) - 1,
+	SSN = 146,
+	SccpEntitySet = [{DPC1, SSN}, {DPC2, SSN}],
+	true = gtt_title:insert(Table, Address, SccpEntitySet).
 
 lookup_first() ->
 	[{userdata, [{doc, "Find the first matching address."}]}].
@@ -150,12 +149,11 @@ lookup_first(_Config) ->
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	fill(Table),
 	Address = address(12),
-	NA = rand:uniform(4294967296) - 1,
-	DPC = rand:uniform(16777216) - 1,
-	Keys = [{DPC, [], []}],
-	TMF = loadshare,
-	AS = {routing_key, {NA, Keys, TMF}},
-	gtt_title:insert(Table, Address, AS),
+	DPC1 = rand:uniform(16777216) - 1,
+	DPC2 = rand:uniform(16777216) - 1,
+	SSN = 146,
+	SccpEntitySet = [{DPC1, SSN}, {DPC2, SSN}],
+	gtt_title:insert(Table, Address, SccpEntitySet),
 	{ok, _} = gtt_title:lookup_first(Table, Address).
 
 lookup_last() ->
@@ -166,13 +164,12 @@ lookup_last(_Config) ->
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	fill(Table),
 	Address = address(12),
-	NA = rand:uniform(4294967296) - 1,
-	DPC = rand:uniform(16777216) - 1,
-	Keys = [{DPC, [], []}],
-	TMF = loadshare,
-	AS = {routing_key, {NA, Keys, TMF}},
-	gtt_title:insert(Table, Address, AS),
-	{ok, AS} = gtt_title:lookup_last(Table, Address).
+	DPC1 = rand:uniform(16777216) - 1,
+	DPC2 = rand:uniform(16777216) - 1,
+	SSN = 146,
+	SccpEntitySet = [{DPC1, SSN}, {DPC2, SSN}],
+	gtt_title:insert(Table, Address, SccpEntitySet),
+	{ok, SccpEntitySet} = gtt_title:lookup_last(Table, Address).
 
 get_first() ->
 	[{userdata, [{doc, "get the first matching address."}]}].
@@ -182,12 +179,11 @@ get_first(_Config) ->
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	fill(Table),
 	Address = address(12),
-	NA = rand:uniform(4294967296) - 1,
-	DPC = rand:uniform(16777216) - 1,
-	Keys = [{DPC, [], []}],
-	TMF = loadshare,
-	AS = {routing_key, {NA, Keys, TMF}},
-	gtt_title:insert(Table, Address, AS),
+	DPC1 = rand:uniform(16777216) - 1,
+	DPC2 = rand:uniform(16777216) - 1,
+	SSN = 146,
+	SccpEntitySet = [{DPC1, SSN}, {DPC2, SSN}],
+	gtt_title:insert(Table, Address, SccpEntitySet),
 	_ = gtt_title:get_first(Table, Address).
 
 get_last() ->
@@ -198,13 +194,12 @@ get_last(_Config) ->
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	fill(Table),
 	Address = address(20),
-	NA = rand:uniform(4294967296) - 1,
-	DPC = rand:uniform(16777216) - 1,
-	Keys = [{DPC, [], []}],
-	TMF = loadshare,
-	AS = {routing_key, {NA, Keys, TMF}},
-	gtt_title:insert(Table, Address, AS),
-	AS = gtt_title:get_last(Table, Address).
+	DPC1 = rand:uniform(16777216) - 1,
+	DPC2 = rand:uniform(16777216) - 1,
+	SSN = 146,
+	SccpEntitySet = [{DPC1, SSN}, {DPC2, SSN}],
+	gtt_title:insert(Table, Address, SccpEntitySet),
+	SccpEntitySet = gtt_title:get_last(Table, Address).
 
 delete_gtt() ->
 	[{userdata, [{doc, "Delete one entry from the table."}]}].
@@ -214,12 +209,11 @@ delete_gtt(_Config) ->
 	ok = gtt_title:new(Table, [{disc_copies, [node() | nodes()]}]),
 	fill(Table),
 	Address = address(12),
-	NA = rand:uniform(4294967296) - 1,
-	DPC = rand:uniform(16777216) - 1,
-	Keys = [{DPC, [], []}],
-	TMF = loadshare,
-	AS = {routing_key, {NA, Keys, TMF}},
-	gtt_title:insert(Table, Address, AS),
+	DPC1 = rand:uniform(16777216) - 1,
+	DPC2 = rand:uniform(16777216) - 1,
+	SSN = 146,
+	SccpEntitySet = [{DPC1, SSN}, {DPC2, SSN}],
+	gtt_title:insert(Table, Address, SccpEntitySet),
 	true = gtt_title:delete(Table, Address).
 
 list_tables() ->
@@ -289,10 +283,13 @@ add_translation(_Config) ->
 	ok = gtt:add_tt(TT, NP, NAI, Table),
 	Prefix = address(5),
 	Replace = address(5),
-	USAP = {local, cse_tsl},
+	DPC1 = rand:uniform(16777216) - 1,
+	DPC2 = rand:uniform(16777216) - 1,
+	SSN = 146,
+	SccpEntitySet = [{DPC1, SSN}, {DPC2, SSN}],
 	ok = gtt:add_translation(Table,
 			sccp_codec:global_title(Prefix),
-			sccp_codec:global_title(Replace), usap, USAP).
+			sccp_codec:global_title(Replace), SccpEntitySet).
 
 translation() ->
 	[{userdata, [{doc, "Perform global title translation with table"}]}].
@@ -308,10 +305,13 @@ translation(_Config) ->
 	Prefix = address(10),
 	Replace = address(10),
 	Rest = address(2),
-	USAP = {local, cse_tsl},
+	DPC1 = rand:uniform(16777216) - 1,
+	DPC2 = rand:uniform(16777216) - 1,
+	SSN = 146,
+	SccpEntitySet = [{DPC1, SSN}, {DPC2, SSN}],
 	ok = gtt:add_translation(Table,
 			sccp_codec:global_title(Prefix),
-			sccp_codec:global_title(Replace), usap, USAP),
+			sccp_codec:global_title(Replace), SccpEntitySet),
 	GT1 = Prefix ++ Rest,
 	GT2 = Replace ++ Rest,
 	Address1 = #party_address{ri = route_on_gt,
@@ -320,7 +320,7 @@ translation(_Config) ->
 			nai = NAI,
 			gt = GT1},
 	Address2 = Address1#party_address{gt = GT2},
-	{ok, {usap, USAP, Address2}} = gtt:translate(Address1).
+	{ok, {SccpEntitySet, Address2}} = gtt:translate(Address1).
 
 translation_fun() ->
 	[{userdata, [{doc, "Perform global title translation with function"}]}].
@@ -331,8 +331,11 @@ translation_fun(_Config) ->
 	NAI = international,
 	CC = [1],
 	NSN = [4, 1, 6, 5, 5, 5, 1, 2, 3, 4],
-	USAP = {local, cse_tsl},
-	MFA = {gtt, international_to_national, [CC, usap, USAP]},
+	DPC1 = rand:uniform(16777216) - 1,
+	DPC2 = rand:uniform(16777216) - 1,
+	SSN = 146,
+	SccpEntitySet = [{DPC1, SSN}, {DPC2, SSN}],
+	MFA = {gtt, international_to_national, [CC, SccpEntitySet]},
 	ok = gtt:add_tt(TT, NP, NAI, MFA),
 	Address1 = #party_address{ri = route_on_gt,
 			translation_type = TT,
@@ -340,7 +343,7 @@ translation_fun(_Config) ->
 			nai = NAI,
 			gt = CC ++ NSN},
 	Address2 = Address1#party_address{nai = national, gt = NSN},
-	{ok, {usap, USAP, Address2}} = gtt:translate(Address1).
+	{ok, {SccpEntitySet, Address2}} = gtt:translate(Address1).
 
 transfer_in_1() ->
 	[{userdata, [{doc, "Transfer MTP3 payload to SG (once)."}]}].

@@ -26,9 +26,9 @@
 -export([add_key/1, delete_key/1, find_pc/1, find_pc/2,
 		find_pc/3, find_pc/4]).
 -export([add_tt/4, delete_tt/3]).
--export([add_translation/4, add_translation/5]).
+-export([add_translation/3, add_translation/4]).
 -export([translate/1, candidates/1, select_asp/2]).
--export([national_to_international/4, international_to_national/4]).
+-export([national_to_international/3, international_to_national/3]).
 
 -include("gtt.hrl").
 -include_lib("sccp/include/sccp.hrl").
@@ -553,22 +553,19 @@ select_asp(ActiveAsps, Weights)
 %% 			Module :: atom(),
 %% 			Function :: atom(),
 %% 			Address :: sccp_codec:party_address(),
-%% 			Result :: {ok, {routing_key, RK}}
-%% 					| {ok, {routing_key, RK, Address}}
-%% 					| {ok, {routing_key, RK, Matched, Replaced}}
-%% 					| {ok, {usap, USAP}}
-%% 					| {ok, {usap, USAP, Address}}
-%% 					| {ok, {usap, USAP, Matched, Replaced}}
+%% 			Result :: {ok, {SccpEntitySet, Address}}
+%% 					| {ok, {SccpEntitySet, Matched, Replaced}}
 %% 					| {error, Reason},
-%% 			RK :: m3ua:routing_key(),
-%% 			USAP :: gen_server:server_name(),
+%% 			SccpEntitySet :: [{DPC, SSN}],
+%% 			DPC :: 0..16777215,
+%% 			SSN :: 0..255 | undefined,
 %% 			Matched :: [0..15],
 %% 			Replaced :: [0..15],
 %% 			Reason :: no_such_nature | no_such_address | term().
 %% 	'''
 %% 	An example of a `TranslateFun' value is:
 %% 	```
-%% 	{gtt, international_to_national, [[1], usap, {local, cse_tsl}]}
+%% 	{gtt, international_to_national, [[1], [{2067, 146}]}
 %% 	'''
 %%
 add_tt(TT, NP, NAI, Translator)
@@ -612,85 +609,56 @@ delete_tt(TT, NP, NAI)
 			{error, Reason}
 	end.
 
--spec add_translation(TableName, Prefix, Type, SAP) -> Result
+-spec add_translation(TableName, Prefix, SccpEntitySet) -> Result
 	when
 		TableName :: atom(),
 		Prefix :: [Digit],
 		Digit :: 0..15 | $0..$9,
-		Type :: routing_key | usap,
-		SAP :: USAP | RK,
-		USAP :: gen_server:server_name(),
-		RK :: m3ua:routing_key(),
+		SccpEntitySet :: [{DPC, SSN}],
+		DPC :: 0..16777215,
+		SSN :: 0..255 | undefined,
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Add a global title translation.
-add_translation(TableName, [H | _] = Prefix, Type, SAP)
+add_translation(TableName, [H | _] = Prefix, SccpEntitySet)
 		when H >= $0, H =< $9 ->
-	add_translation(TableName, sccp_codec:global_title(Prefix), Type, SAP);
-add_translation(TableName, [H | _] = Prefix, usap, USAP)
+	add_translation(TableName, sccp_codec:global_title(Prefix), SccpEntitySet);
+add_translation(TableName, [H | _] = Prefix, SccpEntitySet)
 		when is_atom(TableName), H >= 0, H =< 15,
-		((element(1, USAP) == local)
-				orelse (element(1, USAP) == global)
-				orelse (element(1, USAP) == via)) ->
-	Value = {usap, USAP},
-	try gtt_title:insert(TableName, Prefix, Value) of
+		is_list(SccpEntitySet) ->
+	try gtt_title:insert(TableName, Prefix, SccpEntitySet) of
 		true ->
-			ok
-	catch
-		_Error:Reason ->
-			{error, Reason}
-	end;
-add_translation(TableName,  [H | _] = Prefix, routing_key, RK)
-		when is_atom(TableName), H >= 0, H =< 15,
-		tuple_size(RK) == 3 ->
-	Value = {routing_key, RK},
-	try gtt_title:insert(TableName, Prefix, Value) of true ->
 			ok
 	catch
 		_Error:Reason ->
 			{error, Reason}
 	end.
 
--spec add_translation(TableName, Prefix, Replace, Type, SAP) -> Result
+-spec add_translation(TableName, Prefix, Replace, SccpEntitySet) -> Result
 	when
 		TableName :: atom(),
 		Prefix :: [Digit],
 		Replace :: [Digit],
 		Digit :: 0..15 | $0..$9,
-		Type :: routing_key | usap,
-		SAP :: USAP | RK,
-		USAP :: gen_server:server_name(),
-		RK :: m3ua:routing_key(),
+		SccpEntitySet :: [{DPC, SSN}],
+		DPC :: 0..16777215,
+		SSN :: 0..255 | undefined,
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Add a global title translation.
-add_translation(TableName, [H | _] = Prefix, Replace, Type, SAP)
+add_translation(TableName, [H | _] = Prefix, Replace, SccpEntitySet)
 		when H >= $0, H =< $9 ->
 	add_translation(TableName,
-			sccp_codec:global_title(Prefix), Replace, Type, SAP);
-add_translation(TableName, Prefix, [H | _] = Replace, Type, SAP)
+			sccp_codec:global_title(Prefix), Replace, SccpEntitySet);
+add_translation(TableName, Prefix, [H | _] = Replace, SccpEntitySet)
 		when H >= $0, H =< $9 ->
 	add_translation(TableName,
-			Prefix, sccp_codec:global_title(Replace), Type, SAP);
+			Prefix, sccp_codec:global_title(Replace), SccpEntitySet);
 add_translation(TableName, [H1 | _] = Prefix, [H2 | _] = Replace,
-		usap, USAP) when is_atom(TableName),
+		SccpEntitySet) when is_atom(TableName),
 		H1 >= 0, H1 =< 15, H2 >= 0, H2 =< 15,
-		((element(1, USAP) == local)
-				orelse (element(1, USAP) == global)
-				orelse (element(1, USAP) == via)) ->
-	Value = {usap, USAP, Prefix, Replace},
-	try gtt_title:insert(TableName, Prefix, Value) of
-		true ->
-			ok
-	catch
-		_Error:Reason ->
-			{error, Reason}
-	end;
-add_translation(TableName, [H1 | _] = Prefix, [H2 | _] = Replace,
-		routing_key, RK) when is_atom(TableName),
-		H1 >= 0, H1 =< 15, H2 >= 0, H2 =< 15,
-		tuple_size(RK) == 3 ->
-	Value = {routing_key, RK, Prefix, Replace},
+		is_list(SccpEntitySet) ->
+	Value = {SccpEntitySet, Prefix, Replace},
 	try gtt_title:insert(TableName, Prefix, Value) of
 		true ->
 			ok
@@ -702,11 +670,10 @@ add_translation(TableName, [H1 | _] = Prefix, [H2 | _] = Replace,
 -spec translate(Address) -> Result
 	when
 		Address :: sccp_codec:party_address(),
-		Result :: {ok, Translation} | {error, Reason},
-		Translation :: {routing_key, RK, Address}
-				| {usap, USAP, Address},
-		RK ::  m3ua:routing_key(),
-		USAP :: gen_server:server_name(),
+		Result :: {ok, {SccpEntitySet, Address}} | {error, Reason},
+		SccpEntitySet :: [{DPC, SSN}],
+		DPC :: 0..16777215,
+		SSN :: 0..255 | undefined,
 		Reason :: no_such_nature | no_such_address.
 %% @doc Perform global title translation.
 %%
@@ -729,98 +696,70 @@ translate1(Address, [{gtt_tt, _, {Module, Function, ExtraArgs}}])
 translate1(_Address, []) ->
 	{error, no_such_nature}.
 %% @hidden
-translate2(Address, {ok, {routing_key, RK}})
-		when tuple_size(RK) == 3 ->
-	{ok, {routing_key, RK, Address}};
-translate2(_Address, {ok, {routing_key, RK, Address1}})
-		when tuple_size(RK) == 3,
-		is_record(Address1, party_address) ->
-	{ok, {routing_key, RK, Address1}};
+translate2(Address, {ok, SccpEntitySet})
+		when is_list(SccpEntitySet) ->
+	{ok, {SccpEntitySet, Address}};
+translate2(Address, {ok, {SccpEntitySet, Address1}})
+		when is_list(SccpEntitySet), is_record(Address1, party_address) ->
+	{ok, {SccpEntitySet, Address1}};
 translate2(#party_address{gt = GT1} = Address,
-		{ok, {routing_key, RK, Matched, Replaced}})
-		when tuple_size(RK) == 3,
-		is_list(Matched), is_list(Replaced) ->
+		{ok, {SccpEntitySet, Matched, Replaced}})
+		when is_list(SccpEntitySet), is_list(Matched), is_list(Replaced) ->
 	PrefixLength = length(Matched),
 	SuffixLength = length(GT1) - PrefixLength,
 	GT2 = Replaced ++ lists:sublist(GT1, PrefixLength + 1, SuffixLength),
 	Address1 = Address#party_address{gt = GT2},
-	{ok, {routing_key, RK, Address1}};
-translate2(Address, {ok, {usap, USAP}})
-		when is_tuple(USAP) ->
-	{ok, {usap, USAP, Address}};
-translate2(_Address, {ok, {usap, USAP, Address1}})
-		when is_tuple(USAP),
-		is_record(Address1, party_address) ->
-	{ok, {usap, USAP, Address1}};
-translate2(#party_address{gt = GT1} = Address,
-		{ok, {usap, USAP, Matched, Replaced}})
-		when is_tuple(USAP),
-		is_list(Matched), is_list(Replaced) ->
-	PrefixLength = length(Matched),
-	SuffixLength = length(GT1) - PrefixLength,
-	GT2 = Replaced ++ lists:sublist(GT1, PrefixLength + 1, SuffixLength),
-	Address1 = Address#party_address{gt = GT2},
-	{ok, {usap, USAP, Address1}};
+	{ok, {SccpEntitySet, Address1}};
 translate2(_Address, {error, not_found}) ->
 	{error, no_such_address};
 translate2(_Address, {error, Reason}) ->
 	{error, Reason}.
 
--spec international_to_national(Address, CountryCode,
-		RouteType, RouteTo) -> Result
+-spec international_to_national(Address, CountryCode, SccpEntitySet) -> Result
 	when
 		Address :: sccp_codec:party_address(),
 		CountryCode :: [Digit],
 		Digit :: 0..15,
-		RouteType :: routing_key | usap,
-		RouteTo :: USAP | RK,
-		USAP :: gen_server:server_name(),
-		RK :: m3ua:routing_key(),
-		Result :: {ok, {routing_key, RK, Address}}
-				| {ok, {usap, USAP, Address}}
-				| {error, Reason},
-		RK :: m3ua:routing_key(),
+		SccpEntitySet :: [{DPC, SSN}],
+		DPC :: 0..16777215,
+		SSN :: 0..255 | undefined,
+		Result :: {ok, {SccpEntitySet, Address}} | {error, Reason},
 		Reason :: no_such_nature | no_such_address | term().
 %% @doc Translate international address to national.
 international_to_national(#party_address{nai = international,
-		gt = GT1} = Address, CountryCode, RouteType, RouteTo) ->
+		gt = GT1} = Address, CountryCode, SccpEntitySet) ->
 	international_to_national(Address, CountryCode,
-			RouteType, RouteTo, lists:prefix(CountryCode, GT1));
-international_to_national(_, _, _, _) ->
+			SccpEntitySet, lists:prefix(CountryCode, GT1));
+international_to_national(_, _, _) ->
 	{error, no_such_nature}.
 %% @hidden
 international_to_national(#party_address{gt = GT1} = Address,
-		CountryCode, RouteType, RouteTo, true) ->
+		CountryCode, SccpEntitySet, true) ->
 	PrefixLength = length(CountryCode),
 	SuffixLength = length(GT1) - PrefixLength,
 	GT2 = lists:sublist(GT1, PrefixLength + 1, SuffixLength),
 	Address1 = Address#party_address{nai = national, gt = GT2},
-	{ok, {RouteType, RouteTo, Address1}};
-international_to_national(_, _, _, _, false) ->
+	{ok, {SccpEntitySet, Address1}};
+international_to_national(_, _, _, false) ->
 	{error, no_such_address}.
 
--spec national_to_international(Address, CountryCode,
-		RouteType, RouteTo) -> Result
+-spec national_to_international(Address, CountryCode, SccpEntitySet) -> Result
 	when
 		Address :: sccp_codec:party_address(),
 		CountryCode :: [Digit],
 		Digit :: 0..15,
-		RouteType :: routing_key | usap,
-		RouteTo :: USAP | RK,
-		USAP :: gen_server:server_name(),
-		RK :: m3ua:routing_key(),
-		Result :: {ok, {routing_key, RK, Address}}
-				| {ok, {usap, USAP, Address}}
-				| {error, Reason},
-		RK :: m3ua:routing_key(),
+		SccpEntitySet :: [{DPC, SSN}],
+		DPC :: 0..16777215,
+		SSN :: 0..255 | undefined,
+		Result :: {ok, {SccpEntitySet, Address}} | {error, Reason},
 		Reason :: no_such_nature | no_such_address | term().
 %% @doc Translate national address to international.
 national_to_international(#party_address{nai = national,
-		gt = GT1} = Address, CountryCode, RouteType, RouteTo) ->
+		gt = GT1} = Address, CountryCode, SccpEntitySet) ->
 	GT2 = CountryCode ++ GT1,
 	Address1 = Address#party_address{nai = international, gt = GT2},
-	{ok, {RouteType, RouteTo, Address1}};
-national_to_international(_, _, _, _) ->
+	{ok, {SccpEntitySet, Address1}};
+national_to_international(_, _, _) ->
 	{error, no_such_nature}.
 
 %%----------------------------------------------------------------------
