@@ -155,72 +155,84 @@ recv(Stream, RC, OPC, DPC, NI, SI, SLS, UnitData1,
 		#sccp_unitdata{data = Data, class = Class,
 				called_party = #party_address{ri = route_on_ssn, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
-				when is_map_key(SSN, SSNs) ->
+				when is_integer(SSN) andalso is_map_key(SSN, SSNs) ->
+			CalledParty1 = CalledParty#party_address{pc = DPC, mtp_sap = Fsm},
+			CallingParty1 = CallingParty#party_address{pc = OPC, mtp_sap = Fsm},
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
-					callingAddress = CallingParty#party_address{mtp_sap = Fsm},
-					calledAddress = CalledParty#party_address{mtp_sap = Fsm}},
+					callingAddress = CallingParty1,
+					calledAddress = CalledParty1},
 			USAP = map_get(SSN, SSNs),
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_unitdata{data = Data, class = Class,
 				called_party = #party_address{ri = route_on_gt, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
-				when is_map_key(SSN, SSNs) ->
+				when is_integer(SSN) andalso is_map_key(SSN, SSNs) ->
+			CalledParty1 = CalledParty#party_address{pc = DPC, mtp_sap = Fsm},
+			CallingParty1 = CallingParty#party_address{pc = OPC, mtp_sap = Fsm},
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
-					callingAddress = CallingParty#party_address{mtp_sap = Fsm},
-					calledAddress = CalledParty#party_address{mtp_sap = Fsm}},
+					callingAddress = CallingParty1,
+					calledAddress = CalledParty1},
 			USAP = map_get(SSN, SSNs),
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_extended_unitdata{data = Data, class = Class,
 				called_party = #party_address{ri = route_on_ssn, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
-				when is_map_key(SSN, SSNs) ->
+				when is_integer(SSN) andalso is_map_key(SSN, SSNs) ->
+			CalledParty1 = CalledParty#party_address{pc = DPC, mtp_sap = Fsm},
+			CallingParty1 = CallingParty#party_address{pc = OPC, mtp_sap = Fsm},
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
-					callingAddress = CallingParty#party_address{mtp_sap = Fsm},
-					calledAddress = CalledParty#party_address{mtp_sap = Fsm}},
+					callingAddress = CallingParty1,
+					calledAddress = CalledParty1},
 			USAP = map_get(SSN, SSNs),
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_extended_unitdata{data = Data, class = Class,
 				called_party = #party_address{ri = route_on_gt, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
-				when is_map_key(SSN, SSNs) ->
+				when is_integer(SSN) andalso is_map_key(SSN, SSNs) ->
+			CalledParty1 = CalledParty#party_address{pc = DPC, mtp_sap = Fsm},
+			CallingParty1 = CallingParty#party_address{pc = OPC, mtp_sap = Fsm},
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
-					callingAddress = CallingParty#party_address{mtp_sap = Fsm},
-					calledAddress = CalledParty#party_address{mtp_sap = Fsm}},
+					callingAddress = CallingParty1,
+					calledAddress = CalledParty1},
 			USAP = map_get(SSN, SSNs),
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_long_unitdata{data = Data, class = Class,
 				called_party = #party_address{ri = route_on_ssn, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
-				when is_map_key(SSN, SSNs) ->
+				when is_integer(SSN) andalso is_map_key(SSN, SSNs) ->
+			CalledParty1 = CalledParty#party_address{pc = DPC, mtp_sap = Fsm},
+			CallingParty1 = CallingParty#party_address{pc = OPC, mtp_sap = Fsm},
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
-					callingAddress = CallingParty#party_address{mtp_sap = Fsm},
-					calledAddress = CalledParty#party_address{mtp_sap = Fsm}},
+					callingAddress = CallingParty1,
+					calledAddress = CalledParty1},
 			USAP = map_get(SSN, SSNs),
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
 		#sccp_long_unitdata{data = Data, class = Class,
 				called_party = #party_address{ri = route_on_gt, ssn = SSN} = CalledParty,
 				calling_party = CallingParty}
-				when is_map_key(SSN, SSNs) ->
+				when is_integer(SSN) andalso is_map_key(SSN, SSNs) ->
+			CalledParty1 = CalledParty#party_address{pc = DPC, mtp_sap = Fsm},
+			CallingParty1 = CallingParty#party_address{pc = OPC, mtp_sap = Fsm},
 			UnitData2 = #'N-UNITDATA'{userData = Data,
 					sequenceControl = ?sequenceControl(Class),
 					returnOption = ?returnOption(Class),
-					callingAddress = CallingParty#party_address{mtp_sap = Fsm},
-					calledAddress = CalledParty#party_address{mtp_sap = Fsm}},
+					callingAddress = CallingParty1,
+					calledAddress = CalledParty1},
 			USAP = map_get(SSN, SSNs),
 			gen_server:cast(USAP, {'N', 'UNITDATA', indication, UnitData2}),
 			{ok, once, State};
