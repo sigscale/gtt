@@ -679,8 +679,13 @@ add_translation(TableName, [H1 | _] = Prefix, [H2 | _] = Replace,
 %%
 %% 	See ITU-T Q.714 2.4
 %%
-translate(#party_address{translation_type = TT,
-		numbering_plan = NP, nai = NAI} = Address) ->
+translate(#party_address{ri = route_on_ssn,
+		pc = PC, ssn = SSN} = Address)
+		when is_integer(PC), is_integer(SSN) ->
+	{ok, {[{PC, SSN}], Address}};
+translate(#party_address{ri = route_on_gt,
+		translation_type = TT, numbering_plan = NP,
+		nai = NAI} = Address) ->
 	F = fun () ->
 			mnesia:read(gtt_tt, {TT, NP, NAI}, read)
 	end,
