@@ -59,23 +59,22 @@ application provides an API to provision both AS and ASP as well as
 SCCP global title translation.
 
 ===Initialize M3UA===
-Add a Signaling Gateway (SG) AS with point code `666' named `sg1':
+The following example configures an application server (AS) with point
+code `1-2-3' (`2067') and an SCTP endpoint (EP) listening on the well
+known port for M3UA (2905) with subsystem number (SSN) `146' mapped to
+the the registered name of a TCAP transaction layer SAP:
 ```
-(gtt@host)2> gtt:add_as(sg1, sg, 0, 0, [{666, [], []}], loadshare, 1, 4).
-'''
-
-Add an SCTP server endpoint (ASP), listening on port `2905', named `ep1'
-and implemented by the `gtt_m3ua_cb' callback module:
-```
-(gtt@host)3> gtt:add_ep(ep1, {{0,0,0,0}, 2905, [{registration, static}]}, undefined, server, sgp, gtt_m3ua_cb, [{ssn, #{146 => cse_tsl}}], [sg1]).
+(gtt@host)2> gtt:add_as(as1, as, 0, 0, [{2067, [], []}], loadshare, 1, 2).
+(gtt@host)3> gtt:add_ep(ep1, {{0,0,0,0}, 2905, [{ppi,false},{use_rc,false}]}, undefined, server, asp, gtt_m3ua_cb, [{ssn, #{146 => cse_tsl}}], [as1]).
 '''
 
 ===Initialize SCCP GTT===
-In the example below the SG acts as an international gateway:
+In the example below an STP pair, with point codes `1-2-1' (`2065')
+and `2-1-1' (`4105'), act as an international gateway:
 ```
-(gtt@host)4> gtt:add_tt(0, isdn_tele, international, {gtt, international_to_national, [[1], usap, {local, cse_tsl}]}).
+(gtt@host)4> gtt:add_tt(0, isdn_tele, international, {gtt, international_to_national, [[1], [{2067, 146}]}).
 ok
-(gtt@host)5> gtt:add_tt(0, isdn_tele, national, {gtt, national_to_international, [[1], routing_key, {0, [{666, [], []}], loadshare}]}).
+(gtt@host)5> gtt:add_tt(0, isdn_tele, national, {gtt, national_to_international, [[1], [{2065, 146}, {4105, 146}]}).
 ok
 '''
 
@@ -107,4 +106,5 @@ ok
 		</tr>
 	</tbody>
 </table>
+There may also be any number of global title translation tables.
 
