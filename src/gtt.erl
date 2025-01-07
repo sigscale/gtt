@@ -1,6 +1,6 @@
 %%% gtt.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @copyright 2015-2024 SigScale Global Inc.
+%%% @copyright 2015-2025 SigScale Global Inc.
 %%% @end
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 %%% 	{@link //gtt. gtt} application.
 %%%
 -module(gtt).
--copyright('Copyright (c) 2015-2024 SigScale Global Inc.').
+-copyright('Copyright (c) 2015-2025 SigScale Global Inc.').
 
 %% export the public API
 -export([add_ep/8, add_ep/9, delete_ep/1, get_ep/0, find_ep/1]).
