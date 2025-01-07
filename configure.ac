@@ -68,8 +68,14 @@ AC_ERLANG_CHECK_LIB([sasl], [], [AC_MSG_ERROR([sasl was not found!])])
 AM_CONDITIONAL([MAKE_TAR_EXTRA_FILES],
 		[AS_VERSION_COMPARE([$ERLANG_LIB_VER_sasl], ["4.0"], [false], [true], [true])])
 AC_ERLANG_CHECK_LIB([mnesia], [], [AC_MSG_ERROR([mnesia was not found!])])
-AC_ERLANG_CHECK_LIB([m3ua], [], [AC_MSG_ERROR([m3ua was not found!])])
-AC_ERLANG_CHECK_LIB([sccp], [], [AC_MSG_ERROR([sccp was not found!])])
+AC_ERLANG_CHECK_LIB([m3ua],
+		[AS_VERSION_COMPARE([$ERLANG_LIB_VER_m3ua], ["1.3.0"],
+				[AC_MSG_ERROR([>= m3ua-1.3.0 required!])])],
+		[AC_MSG_ERROR([m3ua was not found!])])
+AC_ERLANG_CHECK_LIB([sccp],
+		[AS_VERSION_COMPARE([$ERLANG_LIB_VER_sccp], ["3.0.0"],
+				[AC_MSG_ERROR([>= sccp-3.0.0 required!])])],
+		[AC_MSG_ERROR([sccp was not found!])])
 AC_ERLANG_CHECK_LIB([tcap], [], [AC_MSG_ERROR([tcap was not found!])])
 AC_ERLANG_CHECK_LIB([compiler], [], [AC_MSG_ERROR([compiler was not found!])])
 AC_ERLANG_CHECK_LIB([inets], [], [AC_MSG_ERROR([inets was not found!])])
