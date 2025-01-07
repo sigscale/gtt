@@ -1,3 +1,12 @@
+January 7, 2025
+---------------
+	- Requires sccp-3.0.0 and m3ua-1.3.0 or above
+	- Include OPC and DPC from MTP in SCCP party address to SCCP-User
+	- API for managing translations
+	- API for common translation functions
+	- Short circuit reply to receiving ASP/SGP
+		- Include MTP SAP in party address
+
 September 23, 2024
 ------------------
 	- Support release upgrade by including application upgrade files

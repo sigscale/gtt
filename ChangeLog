@@ -1,3 +1,33 @@
+2025-01-07  Vance Shipley <vances@sigscale.org>
+
+	* correct examples in user guide
+	* require minimum sccp-3.0.0 and m3ua-1.3.0
+	* update copyright year
+	* handle route on ssn in translate/1
+	* redesign translation for sccp entity set output
+	* include opc/dpc in party address
+	* correct routing key in example
+	* sccp gtt initialization example in user guide
+	* change routing indicator in party address to enumeration
+	* use canned translator in test case
+	* correct example translator in edoc
+	* add common translation functions
+	* usap in translations as gen_server:server_name() value
+	* remove mtp-transfer confirm primitive
+	* uniform prefix lengths in gtt test cases
+	* overide test.spec with ct_run args
+	* don't overwrite existing global title values
+	* test cases for global title translation
+	* public api to add translations
+	* parameterize make check
+	* wait for table after new gtt table
+	* enumerated numbering plan, nature of address in translations
+	* usap value is registered name: atom()
+	* gtt translation types table
+	* get and find semantics in gtt_title api
+	* include mtp sap (asp/sgp) in party address
+	* index name gtai (global title addresses information)(q.713)
+
 2024-09-23  Vance Shipley <vances@sigscale.org>
 
 	* include all application upgrade files in release package
